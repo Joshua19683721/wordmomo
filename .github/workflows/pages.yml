@@ -1,0 +1,45 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時推兩個 commit 時，只跑最新的一次
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Pages
+        uses: actions/configure-pages@v5
+
+      # 這個網站是純靜態 HTML，不需要建置步驟，直接把原始檔當成網站根目錄
+      - name: 打包靜態網站
+        run: |
+          mkdir -p _site
+          cp -r index.html css js assets _site/
+          echo "部署完成，共 $(find _site -type f | wc -l) 個檔案"
+
+      - name: 上傳到 Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: 部署
+        id: deployment
+        uses: actions/deploy-pages@v4
