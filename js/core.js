@@ -212,9 +212,11 @@
       dailyGoal: 20,
       rate: 0.9,
       voiceURI: '',
+      ttsVendor: 'auto',      // auto / microsoft / google / other
       autoPlay: true,
-      theme: 'dark',
-      typeSound: true
+      typeSound: true,
+      revealOnCorrect: true,  // 打完一個字就顯示它（關閉的話全部打完才顯示）
+      theme: 'dark'
     },
     packs: null,        // null = 還沒初始化，啟動時從內建字庫建立
     removedBuiltIn: [], // 使用者主動刪掉的內建字庫，之後不會自動補回來
@@ -314,6 +316,11 @@
 
   /* ------------------------------------------------------------
      WM.speech —— 英文發音
+     ------------------------------------------------------------
+     Windows 上通常同時有兩種引擎：
+       · Microsoft xxx  → localService = true，離線、零延遲
+       · Google xxx     → localService = false，線上、需要網路
+     所以用「供應商」分組讓使用者挑，預設優先用離線的。
      ------------------------------------------------------------ */
   var voices = [], voiceReady = false;
 
@@ -323,8 +330,16 @@
     if (voices.length) voiceReady = true;
   }
 
+  var PROVIDERS = [
+    { key: 'auto',      label: '自動（優先離線）' },
+    { key: 'microsoft', label: 'Microsoft 微軟（離線）' },
+    { key: 'google',    label: 'Google 谷歌（線上）' },
+    { key: 'other',     label: '其他／系統' }
+  ];
+
   WM.speech = {
     supported: ('speechSynthesis' in global && 'SpeechSynthesisUtterance' in global),
+    PROVIDERS: PROVIDERS,
 
     init: function () {
       if (!this.supported) return;
@@ -339,23 +354,61 @@
 
     ready: function () { return voiceReady; },
 
+    /** 判斷這個語音是哪一家提供的（voice.vendor 在 Chrome 上常是空字串，所以看名稱） */
+    providerOf: function (v) {
+      var s = (v.name || '') + ' ' + (v.voiceURI || '') + ' ' + ((v.vendor) || '');
+      if (/google/i.test(s)) return 'google';
+      if (/microsoft/i.test(s)) return 'microsoft';
+      return 'other';
+    },
+
+    /** 這個語音是否需要網路 */
+    isOnline: function (v) { return v && v.localService === false; },
+
+    /** 所有英文語音，依「離線優先 → 供應商 → en-US 優先」排序 */
     list: function () {
       return voices.filter(function (v) { return /^en(-|_|$)/i.test(v.lang); })
         .sort(function (a, b) {
-          var rank = function (v) {
-            if (/en-GB/i.test(v.lang)) return 0;
-            if (/en-US/i.test(v.lang)) return 1;
-            return 2;
-          };
-          return rank(a) - rank(b) || a.name.localeCompare(b.name);
+          var local = (v) => (v.localService === false ? 1 : 0);
+          var prov = (v) => ({ microsoft: 0, google: 1, other: 2 })[WM.speech.providerOf(v)];
+          var us = (v) => (/en-US/i.test(v.lang) ? 0 : 1);
+          return local(a) - local(b) || prov(a) - prov(b) || us(a) - us(b) ||
+                 a.name.localeCompare(b.name);
         });
     },
 
-    pick: function (uri) {
+    /** 依供應商分組，供下拉選單產生 <optgroup> */
+    grouped: function () {
+      var out = { microsoft: [], google: [], other: [] };
+      this.list().forEach((v) => { out[this.providerOf(v)].push(v); });
+      return out;
+    },
+
+    /** 各供應商目前有幾個英文語音 */
+    counts: function () {
+      var g = this.grouped();
+      return { microsoft: g.microsoft.length, google: g.google.length, other: g.other.length };
+    },
+
+    /**
+     * 選出要用的語音。
+     * @param {string} uri    指定的語音（優先）
+     * @param {string} vendor 供應商偏好：auto / microsoft / google / other
+     */
+    pick: function (uri, vendor) {
       var en = this.list();
       if (!en.length) return null;
       if (uri) for (var i = 0; i < en.length; i++) if (en[i].voiceURI === uri) return en[i];
-      return en[0] || null;
+      if (vendor && vendor !== 'auto') {
+        var g = en.filter((v) => this.providerOf(v) === vendor);
+        if (g.length) return g[0];
+      }
+      return en[0] || null;   /* auto：list() 已經把離線的排前面 */
+    },
+
+    /** 目前實際會用哪一個語音（設定畫面顯示用） */
+    current: function () {
+      return this.pick(WM.store.get('voiceURI'), WM.store.get('ttsVendor'));
     },
 
     speak: function (text, opts) {
@@ -368,19 +421,35 @@
       u.lang = 'en-US';
       u.rate = Math.max(0.1, Math.min(2, opts.rate != null ? opts.rate : WM.store.get('rate')));
       u.pitch = 1;
-      var v = this.pick(opts.uri || WM.store.get('voiceURI'));
+      var v = this.pick(
+        opts.uri != null ? opts.uri : WM.store.get('voiceURI'),
+        opts.vendor != null ? opts.vendor : WM.store.get('ttsVendor')
+      );
       if (v) { u.voice = v; u.lang = v.lang; }
 
-      /* 保險：有些瀏覽器語音會卡住，逾時就收尾 */
+      /* 保險：有些瀏覽器語音會卡住（尤其 Google 需要網路），逾時就收尾 */
+      var online = this.isOnline(v);
       var guard = setTimeout(function () {
         if (!global.speechSynthesis.speaking) return;
         try { synth.cancel(); } catch (e) { /* 忽略 */ }
         if (opts.onend) opts.onend();
-      }, Math.max(3000, String(text).length * 130));
+      }, online ? Math.max(6000, String(text).length * 260)
+                : Math.max(3000, String(text).length * 130));
 
       u.onstart = function () { if (opts.onstart) opts.onstart(); };
       u.onend = function () { clearTimeout(guard); if (opts.onend) opts.onend(); };
-      u.onerror = function () { clearTimeout(guard); if (opts.onend) opts.onend(); };
+      u.onerror = function () {
+        clearTimeout(guard);
+        /* 線上語音斷網時不應用，直接退回離線語音唸一次 */
+        if (online && !opts._retried) {
+          opts._retried = true;
+          var u2 = global.speechSynthesis;
+          try { u2.cancel(); } catch (e) { /* 忽略 */ }
+          this.speak(text, { rate: opts.rate, uri: '', vendor: 'microsoft', onend: opts.onend });
+          return;
+        }
+        if (opts.onend) opts.onend();
+      }.bind(this);
 
       synth.speak(u);
       return u;

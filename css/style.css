@@ -307,33 +307,43 @@ html[data-theme="dark"] .ladder__mark { background: rgba(255,255,255,.07); }
 .practice__type {
   margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
-.words {
+/* 逐字槽位：目標答案預設不顯示，只顯示「你已經打出來而且確認正確」的字 */
+.slots {
   display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline;
-  gap: 6px 10px; margin-bottom: 20px;
-  font-size: clamp(1.15rem,4.2vw,1.7rem); font-weight: 650;
+  gap: 8px 10px; margin-bottom: 22px; min-height: 2.4em;
+  font-size: clamp(1.05rem,3.8vw,1.5rem); font-weight: 650;
   font-family: ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
   word-break: break-word;
 }
-.tw { display: inline-flex; align-items: baseline; padding: 2px 4px; border-radius: 7px;
+.slot { display: inline-flex; align-items: baseline; padding: 3px 6px; border-radius: 8px;
   transition: background .2s ease, color .2s ease; }
-.tw__rest { color: var(--text-3); }
-.tw__ok   { color: var(--ok); }
-.tw__pun  { color: var(--text-3); }
-.tw.is-now {
-  background: var(--brand-soft);
-  box-shadow: inset 0 0 0 1.5px var(--brand);
+.slot__pun { color: var(--text-3); }
+.slot__txt { color: var(--text); }
+.slot.is-ok { background: rgba(47,191,113,.13); }
+.slot.is-ok .slot__txt { color: var(--ok); }
+.slot.is-now { background: var(--brand-soft); box-shadow: inset 0 0 0 1.5px var(--brand); }
+.slot.is-now .slot__txt { color: var(--text); }
+.slot.is-bad { background: rgba(242,85,90,.18); box-shadow: inset 0 0 0 1.5px var(--bad); }
+.slot__txt.is-bad { color: var(--bad); text-decoration: line-through; }
+/* 還沒打的字：固定大小的空格，不透露長度也不透露內容 */
+.slot__txt--blank {
+  display: inline-block; min-width: 2.4em; height: 1.1em;
+  border-bottom: 2px dashed var(--line); border-radius: 3px;
 }
-.tw.is-ok { background: rgba(47,191,113,.12); }
-.tw.is-ok .tw__ok { color: var(--ok); }
-.tw.is-wrong { background: rgba(242,85,90,.18); box-shadow: inset 0 0 0 1.5px var(--bad); }
-.tw.is-wrong .tw__ok, .tw.is-wrong .tw__rest { color: var(--bad); text-decoration: line-through; }
-
-.tw__caret {
+.slot__caret {
   display: inline-block; width: 2px; height: 1.05em;
   background: var(--brand); vertical-align: text-bottom;
   animation: blink 1.05s steps(2, start) infinite;
 }
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* 快捷鍵說明列 */
+.shortcuts {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 8px 22px; margin-top: 20px;
+  color: var(--text-3); font-size: .82rem;
+}
+.shortcuts .kbd { margin: 0 1px; }
 
 /* 頛詨??*/
 .typerow { display: flex; align-items: center; gap: 12px; max-width: 560px; margin: 0 auto; flex-wrap: wrap; justify-content: center; }
@@ -350,6 +360,7 @@ html[data-theme="dark"] .ladder__mark { background: rgba(255,255,255,.07); }
   letter-spacing: .04em;
 }
 .typerow__state { font-size: .82rem; color: var(--text-3); flex: 0 0 auto; }
+.typerow__state.is-bad { color: var(--bad); font-weight: 700; }
 .practice__help { text-align: center; color: var(--text-3); font-size: .82rem; margin: 16px 0 0; }
 .practice__done { margin-top: 4px; }
 

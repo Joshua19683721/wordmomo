@@ -19,6 +19,16 @@
   var ICONS = ['📦','🎯','☕','💼','✈️','📚','💻','🗣️','🎨','🧪','🏥','🍳','⚽','🎵','🧠','🌍','🛠️','📝','🔬','🍜'];
   var LEVELS = ['A1','A2','B1','B2','C1','C2'];
 
+  /* 喇叭按鈕要唸的英文。
+     刻意「不」把英文寫進 data-speak 屬性 —— 練習中答案必須是隱藏的，
+     如果寫在 HTML 裡，看原始碼就看得到 cheating。這裡改用代號，點擊時才解析。 */
+  var sayRegistry = {}, saySeq = 0;
+  function sayRef(text) {
+    var id = 'say' + (++saySeq);
+    sayRegistry[id] = text;
+    return id;
+  }
+
   /* 打字練習的暫存狀態 */
   var tstate = {
     packId: null,
@@ -29,6 +39,7 @@
     wrong: false,        // 目前的單字是不是打錯過
     missCount: 0,        // 這一頁總共打錯幾次
     finished: false,     // 整個步驟完成
+    revealAll: false,    // 使用者按了 Ctrl+; 偷看答案
     startedAt: 0
   };
 
@@ -146,8 +157,8 @@
         '<div class="daily">' +
           '<div class="daily__zh">' + esc(firstStep.zh) + '</div>' +
           '<div class="daily__ipa">' + (firstStep.ipa ? esc(firstStep.ipa) : '<span class="muted">（整句不標音標）</span>') + '</div>' +
-          '<button class="speak-btn" data-speak="' + esc(firstStep.en) + '" aria-label="播放發音">🔊</button>' +
-          '<p class="daily__hint">點喇叭聽發音，或按 <span class="kbd">Ctrl</span>+<span class="kbd">P</span></p>' +
+          '<button class="speak-btn" data-say="' + sayRef(firstStep.en) + '" aria-label="播放發音">🔊</button>' +
+          '<p class="daily__hint">點喇叭聽發音，或按 <span class="kbd">Ctrl</span>+<span class="kbd">\'</span></p>' +
         '</div>' +
         '<div class="btn-row" style="justify-content:center;margin-top:6px">' +
           '<a class="btn btn--primary" href="#/learn/' + pack.id + '/' + (daily ? daily.id : '') + '">開始 ▸</a>' +
@@ -244,34 +255,36 @@
       '</li>';
     }).join('');
 
-    /* 逐字顯示 */
-    var wordHTML = tokens.map(function (t, i) {
-      var cls = 'tw';
-      if (i < tstate.tokIdx) cls += ' is-ok';
-      if (i === tstate.tokIdx) {
-        cls += ' is-now';
-        if (tstate.wrong) cls += ' is-wrong';   /* 打錯 → 標紅鎖住，必須重打 */
-      }
-      var inner = '';
-      if (i === tstate.tokIdx) {
-        var typedCore = WM.text.core(tstate.typed);
-        var donePart = typedCore.slice(0, tstate.typed.length);
-        var rest = t.core.slice(typedCore.length);
-        inner = '<span class="tw__ok">' + esc(donePart) + '</span>' +
-                '<span class="tw__caret"></span>' +
-                '<span class="tw__rest">' + esc(rest) + '</span>';
-      } else if (i < tstate.tokIdx) {
-        /* 已經打對的字：整個顯示成綠色 */
-        inner = '<span class="tw__ok">' + esc(t.core) + '</span>';
+    /* 逐字槽位：答案預設不顯示，只顯示「你已經打出來而且確認正確」的字 */
+    var revealDone = !!WM.store.get('revealOnCorrect');
+    var slotsHTML = tokens.map(function (t, i) {
+      var done = i < tstate.tokIdx;
+      var cur = i === tstate.tokIdx;
+      var pun = (t.lead || t.tail) ? '<span class="slot__pun">' + esc(t.lead || t.tail) + '</span>' : '';
+      var body;
+      if (tstate.finished || tstate.revealAll) {
+        body = '<span class="slot__txt">' + esc(t.word) + '</span>';   /* 全部顯示答案 */
+      } else if (done) {
+        body = revealDone
+          ? '<span class="slot__txt">' + esc(t.word) + '</span>'        /* 打對了就顯示 */
+          : '<span class="slot__txt">' + esc(WM.text.core(t.word)) + '</span>';
+      } else if (cur) {
+        body = '<span class="slot__txt' + (tstate.wrong ? ' is-bad' : '') + '">' +
+                 esc(tstate.typed) + '<span class="slot__caret"></span>' +
+               '</span>';
       } else {
-        inner = '<span class="tw__rest">' + esc(t.core) + '</span>';
+        body = '<span class="slot__txt slot__txt--blank"></span>';     /* 還不知道是什麼 */
       }
-      return '<span class="' + cls + '" data-tok="' + i + '">' +
-        (t.lead ? '<span class="tw__pun">' + esc(t.lead) + '</span>' : '') +
-        inner +
-        (t.tail ? '<span class="tw__pun">' + esc(t.tail) + '</span>' : '') +
-      '</span>';
+      var cls = 'slot' + (done || tstate.finished || tstate.revealAll ? ' is-ok' : '') +
+                (cur && !tstate.finished ? ' is-now' : '') +
+                (tstate.wrong && cur ? ' is-bad' : '');
+      return '<span class="' + cls + '" data-slot="' + i + '">' + pun + body + '</span>';
     }).join(' ');
+
+    var stateText = tstate.finished
+      ? '完成'
+      : tstate.wrong ? '打錯了，刪掉重打'
+      : '第 ' + Math.min(tstate.tokIdx + 1, tokens.length) + ' / ' + tokens.length + ' 個字';
 
     return '' +
     '<div class="study__bar">' +
@@ -288,19 +301,19 @@
     '<section class="card card--pad-lg practice' + (tstate.finished ? ' is-finished' : '') + '">' +
       '<div class="practice__zh">' + esc(step.zh) + '</div>' +
       '<div class="practice__ipa">' + (step.ipa ? esc(step.ipa) : '<span class="muted">整句不標音標，直接用發音按鈕聽</span>') + '</div>' +
-      '<button class="speak-btn" data-speak="' + esc(step.en) + '" aria-label="播放發音">🔊</button>' +
+      '<button class="speak-btn" data-say="' + sayRef(step.en) + '" aria-label="播放發音">🔊</button>' +
 
       '<div class="practice__type">' +
-        '<div class="words" id="words">' + wordHTML + '</div>' +
+        '<div class="slots" id="slots">' + slotsHTML + '</div>' +
         (tstate.finished
           ? '<div class="practice__done" id="practiceDone"></div>'
           : '<div class="typerow">' +
               '<input class="input typerow__input" id="typer" type="text" autocomplete="off" ' +
                 'autocapitalize="off" autocorrect="off" spellcheck="false" ' +
                 'value="' + esc(tstate.typed) + '" ' +
-                'placeholder="照著上面的英文打，按空白鍵送出這個字">' +
-              '<span class="typerow__state" id="typerState">' +
-                (tstate.wrong ? '打錯了，刪掉重打' : '第 ' + (tstate.tokIdx + 1) + ' / ' + tokens.length + ' 個字') +
+                'placeholder="把英文打出來，按空白鍵送出這個字">' +
+              '<span class="typerow__state' + (tstate.wrong ? ' is-bad' : '') + '" id="typerState">' +
+                stateText +
               '</span>' +
             '</div>') +
       '</div>' +
@@ -308,8 +321,12 @@
 
     (tstate.finished
       ? '<div class="btn-row" style="justify-content:center;margin-top:18px" id="nextActions"></div>'
-      : '<p class="practice__help">打完一個字按 <span class="kbd">空白</span> → 確認並唸出這個字。' +
-        '整句打完會再整句唸一次。發音：<span class="kbd">Ctrl</span>+<span class="kbd">P</span></p>');
+      : '<div class="shortcuts">' +
+          '<span><span class="kbd">空白</span> 送出這個字</span>' +
+          '<span><span class="kbd">Ctrl</span>+<span class="kbd">\'</span> 播放發音</span>' +
+          '<span><span class="kbd">Ctrl</span>+<span class="kbd">;</span> 顯示答案</span>' +
+          '<span><span class="kbd">Enter</span> 送出</span>' +
+        '</div>');
   }
 
   /** 步驟完成後的動作按鈕 */
@@ -346,6 +363,7 @@
     tstate.wrong = false;
     tstate.missCount = 0;
     tstate.finished = false;
+    tstate.revealAll = false;
     tstate.startedAt = Date.now();
   }
 
@@ -425,6 +443,7 @@
     tstate.typed = '';
     tstate.wrong = false;
     tstate.finished = false;
+    tstate.revealAll = false;
     render();
     focusTyper();
     if (WM.store.get('autoPlay')) {
@@ -454,6 +473,7 @@
     tstate.typed = '';
     tstate.wrong = false;
     tstate.finished = false;
+    tstate.revealAll = false;
     tstate.missCount = 0;
     render();
     focusTyper();
@@ -828,28 +848,66 @@
     $('#setSpeechRateOut').textContent = Number(s.rate).toFixed(2);
     $('#setAutoPlay').checked = !!s.autoPlay;
     $('#setTypeSound').checked = !!s.typeSound;
+    $('#setReveal').checked = s.revealOnCorrect !== false;
     applyTheme(s.theme || 'dark');
 
+    var vsel = $('#setTtsVendor');
+    var vhint = $('#vendorHint');
     var sel = $('#setVoice');
     var hint = $('#voiceHint');
+
     if (!WM.speech.supported) {
       hint.textContent = '這個瀏覽器不支援語音發音，建議改用 Chrome 或 Edge。';
       sel.innerHTML = '<option>不支援</option>';
       sel.disabled = true;
+      vsel.innerHTML = '<option>不支援</option>';
+      vsel.disabled = true;
       return;
     }
+
+    /* 供應商選單：把不存在的選項拿掉，並標出數量與是否需要網路 */
+    var counts = WM.speech.counts();
+    vsel.innerHTML = WM.speech.PROVIDERS.map(function (p) {
+      var n = counts[p.key != null ? p.key : 'other'] || 0;
+      if (p.key !== 'auto' && n === 0) return '';
+      var label = p.label + (p.key === 'auto' ? '' : '（' + n + ' 個）');
+      return '<option value="' + p.key + '"' + (s.ttsVendor === p.key ? ' selected' : '') + '>' +
+        esc(label) + '</option>';
+    }).join('');
+    vsel.disabled = false;
+
     var en = WM.speech.list();
     if (!en.length) {
       hint.textContent = '正在偵測語音…（持續空白代表系統尚未安裝英文語音包）';
       sel.innerHTML = '<option value="">載入中…</option>';
+      vhint.textContent = '等待語音清單載入…';
       return;
     }
-    sel.innerHTML = en.map(function (v) {
-      return '<option value="' + esc(v.voiceURI) + '"' + (v.voiceURI === s.voiceURI ? ' selected' : '') + '>' +
-        esc(v.name) + ' (' + esc(v.lang) + ')</option>';
-    }).join('');
-    if (!s.voiceURI) sel.value = en[0].voiceURI;
-    hint.textContent = '共 ' + en.length + ' 個英文語音可選。';
+
+    /* 依供應商分組，線上語音標示需要網路 */
+    var g = WM.speech.grouped();
+    var group = { microsoft: 'Microsoft 微軟（離線）', google: 'Google 谷歌（線上，需要網路）', other: '其他／系統' };
+    var html = '';
+    ['microsoft', 'google', 'other'].forEach(function (key) {
+      if (!g[key].length) return;
+      html += '<optgroup label="' + esc(group[key]) + '">';
+      g[key].forEach(function (v) {
+        var mark = WM.speech.isOnline(v) ? ' 🌐' : '';
+        html += '<option value="' + esc(v.voiceURI) + '"' +
+          (v.voiceURI === s.voiceURI ? ' selected' : '') + '>' +
+          esc(v.name) + ' (' + esc(v.lang) + ')' + mark + '</option>';
+      });
+      html += '</optgroup>';
+    });
+    sel.innerHTML = html;
+
+    var cur = WM.speech.current();
+    vhint.textContent = cur
+      ? '目前會用：' + cur.name + (WM.speech.isOnline(cur) ? '（線上，斷網時會自動改用微軟）' : '（離線）')
+      : '沒有可用的英文語音。';
+    hint.textContent = '共 ' + en.length + ' 個英文語音可選。' +
+      (s.voiceURI && !WM.speech.pick(s.voiceURI, s.ttsVendor)
+        ? '（已選的語音不存在，會自動改用上面的引擎）' : '');
   }
 
   function bindSettings() {
@@ -868,7 +926,19 @@
     });
     $('#setVoice').addEventListener('change', function () {
       WM.store.set('voiceURI', this.value);
+      syncSettingsUI();
       WM.speech.speak('Hello, this is how I sound.');
+    });
+    $('#setTtsVendor').addEventListener('change', function () {
+      WM.store.set('ttsVendor', this.value);
+      /* 換供應商時清掉指定語音，讓引擎偏好真正生效 */
+      WM.store.set('voiceURI', '');
+      syncSettingsUI();
+      WM.speech.speak('Hello, this is how I sound.');
+    });
+    $('#setReveal').addEventListener('change', function () {
+      WM.store.set('revealOnCorrect', this.checked);
+      render();
     });
 
     document.querySelectorAll('[data-close-drawer]').forEach(function (el) {
@@ -965,6 +1035,7 @@
 
     $('#settingsDrawer').hidden = true;
     WM.speech.stop();
+    sayRegistry = {}; saySeq = 0;   /* 每次重畫重新建立，避免殘留舊的發音內容 */
 
     var html;
     try {
@@ -991,8 +1062,12 @@
   function onClick(e) {
     var t = e.target, el;
 
-    if ((el = t.closest('[data-speak]'))) {
-      WM.speech.speak(el.getAttribute('data-speak'));
+    if ((el = t.closest('[data-say]'))) {
+      var txt = sayRegistry[el.getAttribute('data-say')];
+      if (txt) {
+        el.classList.add('is-playing');
+        WM.speech.speak(txt, { onend: function () { el.classList.remove('is-playing'); } });
+      }
       return;
     }
 
@@ -1050,23 +1125,39 @@
     }
 
     var editing = e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA';
+    var onLearn = currentRoute() === 'learn';
+    var mod = e.ctrlKey || e.metaKey;
 
-    /* 學習頁：Ctrl+P 發音（會蓋掉瀏覽器列印，先擋下來） */
-    if (currentRoute() === 'learn' && (e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
-      e.preventDefault();
+    function speakCurrent() {
       var pack = packById(tstate.packId);
       var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
       var step = chain && chain.steps[tstate.stepIdx];
-      if (step) {
-        var btn = $('.speak-btn');
-        if (btn) btn.classList.add('is-playing');
-        WM.speech.speak(step.en, { onend: function () {
-          var b = $('.speak-btn');
-          if (b) b.classList.remove('is-playing');
-        } });
-        toast('🔊 ' + step.en);
+      if (!step) return;
+      var btn = $('.speak-btn');
+      if (btn) btn.classList.add('is-playing');
+      WM.speech.speak(step.en, { onend: function () {
+        var b = $('.speak-btn');
+        if (b) b.classList.remove('is-playing');
+      } });
+    }
+
+    /* 學習頁快捷鍵（會蓋掉瀏覽器預設，先擋下來） */
+    if (onLearn && mod) {
+      var k = String(e.key || '');
+      if (k === 'p' || k === 'P' || k === "'" || k === '"') {   /* Ctrl+P / Ctrl+' → 播放發音 */
+        e.preventDefault();
+        speakCurrent();
+        return;
       }
-      return;
+      if (k === ';' || k === ':') {                                /* Ctrl+; → 顯示答案 */
+        e.preventDefault();
+        if (tstate.finished) return;
+        tstate.revealAll = true;
+        render();
+        focusTyper();
+        toast('已顯示答案，繼續照著打就好');
+        return;
+      }
     }
 
     /* 打字輸入框：空白 / Enter = 送出並比對 */
@@ -1076,7 +1167,7 @@
         commitWord();
         return;
       }
-      /* 其他按鍵 → 打字音效 + 解除錯誤狀態 */
+      /* 其他按鍵 → 打字音效 */
       if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
         if (WM.store.get('typeSound')) WM.audio.tick();
       }
@@ -1090,7 +1181,6 @@
     if (e.target.id !== 'typer') return;
     tstate.typed = e.target.value;
 
-    /* 打字時即時把字顯示在對應的單字上 */
     var pack = packById(tstate.packId);
     var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
     if (!chain) return;
@@ -1100,21 +1190,25 @@
     var tok = tokens[tstate.tokIdx];
     if (!tok) return;
 
-    var span = document.querySelector('.tw[data-tok="' + tstate.tokIdx + '"]');
-    if (!span) return;
+    var slot = document.querySelector('.slot[data-slot="' + tstate.tokIdx + '"]');
+    if (!slot) return;
 
-    var typedCore = WM.text.core(tstate.typed);
-    var rest = tok.core.slice(typedCore.length);
-    span.innerHTML =
-      (tok.lead ? '<span class="tw__pun">' + esc(tok.lead) + '</span>' : '') +
-      '<span class="tw__ok">' + esc(typedCore) + '</span>' +
-      '<span class="tw__caret"></span>' +
-      '<span class="tw__rest">' + esc(rest) + '</span>' +
-      (tok.tail ? '<span class="tw__pun">' + esc(tok.tail) + '</span>' : '');
+    var bad = tstate.wrong && !WM.text.matches(tstate.typed, tok.word);
+    /* 只顯示「你自己打的字」，不顯示目標單字 */
+    slot.innerHTML = '<span class="slot__txt' + (bad ? ' is-bad' : '') + '">' +
+      esc(tstate.typed) + '<span class="slot__caret"></span></span>';
+    slot.classList.toggle('is-bad', !!bad);
 
     /* 重新輸入正確內容時，把紅色錯誤狀態拿掉 */
-    if (tstate.wrong && WM.text.matches(tstate.typed, tok.word)) tstate.wrong = false;
-    span.classList.remove('is-wrong');
+    if (tstate.wrong && WM.text.matches(tstate.typed, tok.word)) {
+      tstate.wrong = false;
+      slot.classList.remove('is-bad');
+      var st = document.getElementById('typerState');
+      if (st) {
+        st.classList.remove('is-bad');
+        st.textContent = '第 ' + Math.min(tstate.tokIdx + 1, tokens.length) + ' / ' + tokens.length + ' 個字';
+      }
+    }
   }
 
   /* ============================================================
