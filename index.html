@@ -370,6 +370,124 @@
       display: flex;
       justify-content: flex-end;
       gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* ================= 句庫管理 / 進度相關樣式 ================= */
+    .modal {
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+
+    .btn-ghost {
+      background: transparent;
+    }
+
+    .modal-hint {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 14px;
+    }
+
+    .modal-hint b {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .export-box {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .export-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .export-head .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .export-head .btn-row button {
+      font-size: 0.82rem;
+      padding: 7px 11px;
+    }
+
+    .export-note {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 10px;
+    }
+
+    .export-note code {
+      background: var(--bg-input);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+    }
+
+    .export-text {
+      width: 100%;
+      height: 150px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      line-height: 1.5;
+      resize: vertical;
+      outline: none;
+    }
+
+    .save-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: var(--accent-green);
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 6px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 100px;
+      transform: translate(-50%, 12px);
+      background: var(--bg-card);
+      border: 1px solid var(--accent-purple);
+      color: var(--text-main);
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      z-index: 2000;
+      pointer-events: none;
+      max-width: 88vw;
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
     }
   </style>
 </head>
@@ -393,7 +511,8 @@
       </div>
     </div>
     <div class="controls-group">
-      <button class="btn-primary" id="openImportBtn">📥 匯入句庫</button>
+      <span class="save-chip" title="練到第幾句、哪些字已經打好，都會存在這台裝置；下次開啟直接接續">💾 自動記住進度</span>
+      <button class="btn-primary" id="openImportBtn">📥 句庫管理</button>
     </div>
   </header>
 
@@ -430,18 +549,40 @@
   <div class="modal-overlay" id="importModal">
     <div class="modal">
       <div class="modal-header">
-        <div class="modal-title">匯入自訂句庫 (格式：英文 = 中文 = 音標)</div>
+        <div class="modal-title">句庫管理</div>
         <button id="closeImportBtn" style="background:transparent; border:none; font-size:1.2rem; color:var(--text-muted); cursor:pointer;">✕</button>
       </div>
       <div class="modal-body">
-        <textarea id="importTextarea" placeholder="請貼上句庫內容..."></textarea>
+        <div class="modal-hint" id="bankHint"></div>
+        <textarea id="importTextarea" placeholder="請貼上句庫內容，格式：英文 = 中文 = 音標（一行一句）"></textarea>
       </div>
       <div class="modal-footer">
+        <button id="useRepoBtn" class="btn-ghost" style="display:none">改用 GitHub 版句庫</button>
         <button id="cancelImportBtn">取消</button>
         <button class="btn-primary" id="submitImportBtn">確認匯入</button>
       </div>
+
+      <div class="export-box">
+        <div class="export-head">
+          <span>📤 寫入 GitHub，讓所有裝置共用同一份句庫</span>
+          <span class="btn-row">
+            <button id="copyDataBtn">複製 data/sentences.js</button>
+            <button id="downloadDataBtn">下載 sentences.js</button>
+            <button id="clearLocalBtn" class="btn-ghost">🗑 清除本機記錄</button>
+          </span>
+        </div>
+        <p class="export-note">
+          按「下載」取得 <code>sentences.js</code>，放進專案的 <code>data/</code> 資料夾取代舊檔，再
+          <code>git push</code>，之後所有裝置開啟就會共用這份句庫。<br>
+          你自己匯入的內容與練習進度已經存在這台裝置，不用等 push 就能用。
+        </p>
+        <textarea id="exportText" class="export-text" readonly spellcheck="false"></textarea>
+      </div>
     </div>
   </div>
+
+  <!-- 共用句庫：GitHub 上 data/sentences.js 的內容，會蓋掉 App 內建的預設句庫 -->
+  <script src="data/sentences.js"></script>
 
   <script>
     const defaultRawText = `This = 這 = /ðɪs/
@@ -454,6 +595,30 @@ calling = 來電 = /ˈkɔːlɪŋ/
 If it wasn't because of you calling = 如果不是因為您打電話來 = /ɪf ɪt wɑːznˈt bɪˈkəz əv juː ˈkɔːlɪŋ/
 I am on stage = 我正在舞台上 = /aɪ æm ɑːn steɪdʒ/
 If it wasn't because of you calling, I am on stage with the besties. = 如果不是因為您打電話來，我現在正跟好朋友在台上呢。 = /ɪf ɪt wɑːznˈt bɪˈkəz əv juː ˈkɔːlɪŋ, aɪ æm ɑːn steɪdʒ wɪð ðə ˈbestiːz/`;
+
+    /* ================= 儲存：句庫來源 + 練習進度 ================= */
+    const STORAGE_BANK = 'wm.bank.v1';
+    const STORAGE_PROGRESS = 'wm.progress.v1';
+
+    function readStore(key, fallback) {
+      try {
+        const v = localStorage.getItem(key);
+        return (v === null || v === undefined) ? fallback : v;
+      } catch (e) { return fallback; }
+    }
+    function writeStore(key, value) {
+      try { localStorage.setItem(key, value); } catch (e) {}
+    }
+    function removeStore(key) {
+      try { localStorage.removeItem(key); } catch (e) {}
+    }
+
+    // GitHub 上的共用句庫（data/sentences.js）
+    let repoRaw = (typeof window.SENTENCE_BANK === 'string' ? window.SENTENCE_BANK : '').trim();
+    // 這台裝置自己匯入的句庫
+    let localRaw = (readStore(STORAGE_BANK, '') || '').trim();
+    // 上次練到哪裡
+    let progress = { index: 0, sentence: '', correct: [] };
 
     let dataset = [];
     let currentIndex = 0;
@@ -478,6 +643,105 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
     const cancelImportBtn = document.getElementById('cancelImportBtn');
     const submitImportBtn = document.getElementById('submitImportBtn');
     const importTextarea = document.getElementById('importTextarea');
+    const bankHint = document.getElementById('bankHint');
+    const exportText = document.getElementById('exportText');
+    const useRepoBtn = document.getElementById('useRepoBtn');
+
+    /* ================= 句庫來源 ================= */
+    function currentRaw() {
+      if (localRaw) return localRaw;
+      if (repoRaw) return repoRaw;
+      return defaultRawText;
+    }
+
+    function bankSourceLabel() {
+      if (localRaw) return '這台裝置匯入的句庫（' + parseRawText(localRaw).length + ' 句）';
+      if (repoRaw) return 'GitHub 共用句庫（' + parseRawText(repoRaw).length + ' 句）';
+      return 'App 內建預設句庫（' + parseRawText(defaultRawText).length + ' 句）';
+    }
+
+    function buildDataFile() {
+      const safe = currentRaw().replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+      return '// data/sentences.js — 共用句庫（改完存檔、git push，所有裝置就會讀到這份）\n' +
+             '//\n' +
+             '// 格式：一行一句，英文 = 中文 = 音標\n' +
+             '// 例：This = 這 = /ðɪs/\n' +
+             '//\n' +
+             '// 留空時 App 會改用 index.html 內建的預設句庫。\n' +
+             '\n' +
+             'window.SENTENCE_BANK = `\n' + safe + '\n`;\n';
+    }
+
+    function refreshBankPanel() {
+      const count = parseRawText(currentRaw()).length;
+      bankHint.innerHTML = '目前使用：<b>' + bankSourceLabel() + '</b><br>' +
+        '匯入的內容會存在這台裝置，練習到第幾句也會一起記住；換瀏覽器或換手機仍在自己裝置上。';
+      exportText.value = buildDataFile();
+      useRepoBtn.style.display = (localRaw && repoRaw && localRaw !== repoRaw) ? 'inline-block' : 'none';
+      importTextarea.placeholder = '請貼上句庫內容，格式：英文 = 中文 = 音標（目前 ' + count + ' 句）';
+    }
+
+    /* ================= 進度記錄 ================= */
+    function loadProgress() {
+      const raw = readStore(STORAGE_PROGRESS, '');
+      if (!raw) return;
+      try {
+        const p = JSON.parse(raw);
+        if (p && typeof p.index === 'number') {
+          progress = {
+            index: p.index,
+            sentence: p.sentence || '',
+            correct: Array.isArray(p.correct) ? p.correct : []
+          };
+        }
+      } catch (e) {}
+    }
+
+    function collectCorrectIndexes() {
+      return Array.from(wordsContainer.querySelectorAll('input'))
+        .filter(i => i.value && i.value.toLowerCase() === (i.dataset.target || '').toLowerCase())
+        .map(i => Number(i.dataset.index));
+    }
+
+    function saveProgress() {
+      const card = dataset[currentIndex];
+      progress.index = currentIndex;
+      progress.sentence = card ? card.en : '';
+      progress.correct = collectCorrectIndexes();
+      writeStore(STORAGE_PROGRESS, JSON.stringify(progress));
+    }
+
+    function applyProgress() {
+      const card = dataset[currentIndex];
+      if (!card || progress.sentence !== card.en) return 0;
+      const inputs = Array.from(wordsContainer.querySelectorAll('input'));
+      let done = 0;
+      progress.correct.forEach(idx => {
+        const input = inputs[idx];
+        if (!input) return;
+        input.value = input.dataset.target;
+        input.classList.add('correct');
+        const wrapper = input.closest('.input-wrapper');
+        if (wrapper) wrapper.classList.add('correct');
+        done++;
+      });
+      return done;
+    }
+
+    let toastTimer = null;
+    function toast(msg) {
+      let el = document.getElementById('toast');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'toast';
+        el.className = 'toast';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+      requestAnimationFrame(() => el.classList.add('show'));
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 3600);
+    }
 
     function parseRawText(text) {
       const lines = text.split('\n').filter(l => l.trim() !== '');
@@ -530,7 +794,8 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
       }
     }
 
-    function renderCard(index) {
+    // restore=true 才會套用上次存下的進度（只有開啟網頁時呼叫）
+    function renderCard(index, restore) {
       if (dataset.length === 0) return;
       currentIndex = index;
       const currentData = dataset[currentIndex];
@@ -539,7 +804,7 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
       promptIpa.textContent = currentData.ipa || '';
       statusBanner.style.display = 'none';
       wordsContainer.innerHTML = '';
-      
+
       const tokens = currentData.en.match(/([a-zA-Z0-9']+)|([^a-zA-Z0-9'\s]+)/g) || [];
       wordErrorCounts = [];
       isWatermarkActive = [];
@@ -596,11 +861,21 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
         }
       });
 
+      const restored = restore ? applyProgress() : 0;
+      saveProgress();
       speakText(currentData.en, 1);
       setTimeout(() => {
-        const firstInput = wordsContainer.querySelector('input');
-        if (firstInput) firstInput.focus();
+        const inputs = Array.from(wordsContainer.querySelectorAll('input'));
+        const firstEmpty = inputs.find(i => !i.classList.contains('correct'));
+        const target = firstEmpty || inputs[inputs.length - 1];
+        if (target) target.focus();
       }, 50);
+
+      if (restored > 0) {
+        toast('已接續上次進度：第 ' + (currentIndex + 1) + ' 句，已打好 ' + restored + ' 個字');
+      } else if (restore && currentIndex > 0) {
+        toast('已回到上次練習的第 ' + (currentIndex + 1) + ' 句（共 ' + dataset.length + ' 句）');
+      }
     }
 
     function updateWatermark(input, watermarkLayer, targetWord) {
@@ -646,6 +921,7 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
           wrapper.classList.add('correct');
           focusNextInput(wordIdx);
           checkSentenceCompletion();
+          saveProgress();
         }
       }
     }
@@ -725,26 +1001,92 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
     nextCardBtn.addEventListener('click', nextCard);
     speakFullBtn.addEventListener('click', () => speakText(dataset[currentIndex].en, 1));
     restartBtn.addEventListener('click', () => renderCard(currentIndex));
-    
-    openImportBtn.addEventListener('click', () => { importModal.style.display = 'flex'; });
+
+    /* ================= 句庫管理 ================= */
+    openImportBtn.addEventListener('click', () => {
+      refreshBankPanel();
+      importModal.style.display = 'flex';
+    });
     closeImportBtn.addEventListener('click', () => { importModal.style.display = 'none'; });
     cancelImportBtn.addEventListener('click', () => { importModal.style.display = 'none'; });
+
+    useRepoBtn.addEventListener('click', () => {
+      localRaw = '';
+      removeStore(STORAGE_BANK);
+      progress = { index: 0, sentence: '', correct: [] };
+      removeStore(STORAGE_PROGRESS);
+      dataset = parseRawText(currentRaw());
+      if (dataset.length === 0) dataset = parseRawText(defaultRawText);
+      renderCard(0, true);
+      refreshBankPanel();
+      toast('已改用 GitHub 上的共用句庫');
+    });
+
     submitImportBtn.addEventListener('click', () => {
       const customText = importTextarea.value.trim();
-      if (customText) {
-        const parsed = parseRawText(customText);
-        if (parsed.length > 0) {
-          dataset = parsed;
-          renderCard(0);
-          importModal.style.display = 'none';
-        } else {
-          alert('無法解析，請確認格式為：英文 = 中文 = 音標');
-        }
+      if (!customText) return;
+      const parsed = parseRawText(customText);
+      if (parsed.length === 0) {
+        alert('無法解析，請確認格式為：英文 = 中文 = 音標');
+        return;
+      }
+      localRaw = customText;
+      writeStore(STORAGE_BANK, customText);
+      progress = { index: 0, sentence: '', correct: [] };
+      removeStore(STORAGE_PROGRESS);
+      dataset = parsed;
+      renderCard(0, true);
+      refreshBankPanel();
+      importModal.style.display = 'none';
+      toast('已匯入 ' + parsed.length + ' 句，進度從第 1 句重新開始');
+    });
+
+    document.getElementById('copyDataBtn').addEventListener('click', async () => {
+      const text = exportText.value;
+      try {
+        await navigator.clipboard.writeText(text);
+        toast('已複製，貼回專案的 data/sentences.js 再 push 即可');
+      } catch (e) {
+        exportText.removeAttribute('readonly');
+        exportText.select();
+        try { document.execCommand('copy'); } catch (e2) {}
+        exportText.setAttribute('readonly', 'readonly');
+        toast('已複製到剪貼簿');
       }
     });
 
-    dataset = parseRawText(defaultRawText);
-    renderCard(0);
+    document.getElementById('downloadDataBtn').addEventListener('click', () => {
+      const blob = new Blob([exportText.value], { type: 'text/javascript;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sentences.js';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast('已下載 sentences.js，放進專案的 data/ 資料夾後 git push');
+    });
+
+    document.getElementById('clearLocalBtn').addEventListener('click', () => {
+      if (!confirm('確定要清除這台裝置的句庫與練習進度嗎？\n（GitHub 上的共用句庫不受影響）')) return;
+      removeStore(STORAGE_BANK);
+      removeStore(STORAGE_PROGRESS);
+      localRaw = '';
+      progress = { index: 0, sentence: '', correct: [] };
+      dataset = parseRawText(currentRaw());
+      if (dataset.length === 0) dataset = parseRawText(defaultRawText);
+      renderCard(0, true);
+      refreshBankPanel();
+      toast('已清除本機記錄');
+    });
+
+    /* ================= 啟動：接續上次的進度 ================= */
+    loadProgress();
+    dataset = parseRawText(currentRaw());
+    if (dataset.length === 0) dataset = parseRawText(defaultRawText);
+    const resumeIndex = Math.min(Math.max(progress.index, 0), Math.max(dataset.length - 1, 0));
+    renderCard(resumeIndex, true);
   </script>
 </body>
 </html>
