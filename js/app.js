@@ -19,6 +19,9 @@
   var ICONS = ['📦','🎯','☕','💼','✈️','📚','💻','🗣️','🎨','🧪','🏥','🍳','⚽','🎵','🧠','🌍','🛠️','📝','🔬','🍜'];
   var LEVELS = ['A1','A2','B1','B2','C1','C2'];
 
+  /* 同一個字最多錯幾次，就直接顯示答案 */
+  var MAX_STRIKES = 3;
+
   /* 喇叭按鈕要唸的英文。
      刻意「不」把英文寫進 data-speak 屬性 —— 練習中答案必須是隱藏的，
      如果寫在 HTML 裡，看原始碼就看得到 cheating。這裡改用代號，點擊時才解析。 */
@@ -37,9 +40,13 @@
     tokIdx: 0,
     typed: '',
     wrong: false,        // 目前的單字是不是打錯過
-    missCount: 0,        // 這一頁總共打錯幾次
+    tokErr: 0,           // 目前的單字已經錯幾次
+    givenUp: false,      // 錯三次，答案已顯示，等 Enter 重練 / 空白跳過
+    skipped: false,      // 這一步有用到「跳過」
+    missCount: 0,        // 這一步總共打錯幾次
     finished: false,     // 整個步驟完成
     revealAll: false,    // 使用者按了 Ctrl+; 偷看答案
+    autoNextIn: 0,       // 單字步驟完成後自動接下一個步驟的倒數
     startedAt: 0
   };
 
@@ -262,8 +269,9 @@
       var cur = i === tstate.tokIdx;
       var pun = (t.lead || t.tail) ? '<span class="slot__pun">' + esc(t.lead || t.tail) + '</span>' : '';
       var body;
-      if (tstate.finished || tstate.revealAll) {
-        body = '<span class="slot__txt">' + esc(t.word) + '</span>';   /* 全部顯示答案 */
+      if (tstate.finished || tstate.revealAll || (cur && tstate.givenUp)) {
+        /* 錯三次 → 這格直接顯示答案 */
+        body = '<span class="slot__txt">' + esc(t.word) + '</span>';
       } else if (done) {
         body = revealDone
           ? '<span class="slot__txt">' + esc(t.word) + '</span>'        /* 打對了就顯示 */
@@ -276,15 +284,60 @@
         body = '<span class="slot__txt slot__txt--blank"></span>';     /* 還不知道是什麼 */
       }
       var cls = 'slot' + (done || tstate.finished || tstate.revealAll ? ' is-ok' : '') +
-                (cur && !tstate.finished ? ' is-now' : '') +
-                (tstate.wrong && cur ? ' is-bad' : '');
+                (cur && !tstate.finished && !tstate.givenUp ? ' is-now' : '') +
+                (tstate.wrong && cur ? ' is-bad' : '') +
+                (cur && tstate.givenUp ? ' is-giveup' : '');
       return '<span class="' + cls + '" data-slot="' + i + '">' + pun + body + '</span>';
     }).join(' ');
 
     var stateText = tstate.finished
-      ? '完成'
+      ? (tstate.skipped ? '完成（這一步有跳過的字）' : '完成')
+      : tstate.givenUp ? '錯了 ' + MAX_STRIKES + ' 次，已顯示答案'
       : tstate.wrong ? '打錯了，刪掉重打'
       : '第 ' + Math.min(tstate.tokIdx + 1, tokens.length) + ' / ' + tokens.length + ' 個字';
+
+    var bodyHTML;
+    if (tstate.finished) {
+      bodyHTML = '<div class="practice__done" id="practiceDone"></div>';
+    } else if (tstate.givenUp) {
+      var curTok = tokens[tstate.tokIdx];
+      bodyHTML =
+        '<div class="giveup" id="giveup">' +
+          '<div class="giveup__title">這個字錯了 ' + MAX_STRIKES + ' 次，已經幫你顯示答案並念過一次</div>' +
+          '<div class="giveup__word">' + esc(curTok ? curTok.word : '') + '</div>' +
+          '<div class="btn-row" style="justify-content:center;margin-top:14px">' +
+            '<button class="btn btn--primary" data-act="retry-word">重新練習一次 <span class="kbd">Enter</span></button>' +
+            '<button class="btn" data-act="skip-word">跳過，下一個字 <span class="kbd">空白</span></button>' +
+          '</div>' +
+        '</div>';
+    } else {
+      bodyHTML =
+        '<div class="typerow">' +
+          '<input class="input typerow__input" id="typer" type="text" autocomplete="off" ' +
+            'autocapitalize="off" autocorrect="off" spellcheck="false" ' +
+            'value="' + esc(tstate.typed) + '" ' +
+            'placeholder="把英文打出來，按空白鍵送出這個字">' +
+          '<span class="typerow__state' + (tstate.wrong ? ' is-bad' : '') + '" id="typerState">' +
+            stateText +
+          '</span>' +
+        '</div>';
+    }
+
+    var shortcutsHTML = tstate.finished
+      ? (tstate.autoNextIn
+          ? '<div class="shortcuts"><span>下一個步驟是單字，正在自動接續…</span></div>'
+          : '')
+      : tstate.givenUp
+        ? '<div class="shortcuts">' +
+            '<span><span class="kbd">Enter</span> 重新練習這個字</span>' +
+            '<span><span class="kbd">空白</span> 跳過，下一個字</span>' +
+          '</div>'
+        : '<div class="shortcuts">' +
+            '<span><span class="kbd">空白</span> 送出這個字</span>' +
+            '<span><span class="kbd">Ctrl</span>+<span class="kbd">\'</span> 播放發音</span>' +
+            '<span><span class="kbd">Ctrl</span>+<span class="kbd">;</span> 顯示答案</span>' +
+            '<span><span class="kbd">Enter</span> 送出</span>' +
+          '</div>';
 
     return '' +
     '<div class="study__bar">' +
@@ -298,35 +351,24 @@
 
     '<ol class="ladder">' + ladder + '</ol>' +
 
-    '<section class="card card--pad-lg practice' + (tstate.finished ? ' is-finished' : '') + '">' +
+    '<section class="card card--pad-lg practice' +
+      (tstate.finished ? ' is-finished' : '') +
+      (tstate.givenUp ? ' is-giveup' : '') +
+      (tstate.finished && tstate.skipped ? ' is-weak' : '') + '">' +
       '<div class="practice__zh">' + esc(step.zh) + '</div>' +
       '<div class="practice__ipa">' + (step.ipa ? esc(step.ipa) : '<span class="muted">整句不標音標，直接用發音按鈕聽</span>') + '</div>' +
       '<button class="speak-btn" data-say="' + sayRef(step.en) + '" aria-label="播放發音">🔊</button>' +
 
       '<div class="practice__type">' +
         '<div class="slots" id="slots">' + slotsHTML + '</div>' +
-        (tstate.finished
-          ? '<div class="practice__done" id="practiceDone"></div>'
-          : '<div class="typerow">' +
-              '<input class="input typerow__input" id="typer" type="text" autocomplete="off" ' +
-                'autocapitalize="off" autocorrect="off" spellcheck="false" ' +
-                'value="' + esc(tstate.typed) + '" ' +
-                'placeholder="把英文打出來，按空白鍵送出這個字">' +
-              '<span class="typerow__state' + (tstate.wrong ? ' is-bad' : '') + '" id="typerState">' +
-                stateText +
-              '</span>' +
-            '</div>') +
+        bodyHTML +
       '</div>' +
     '</section>' +
 
+    shortcutsHTML +
     (tstate.finished
       ? '<div class="btn-row" style="justify-content:center;margin-top:18px" id="nextActions"></div>'
-      : '<div class="shortcuts">' +
-          '<span><span class="kbd">空白</span> 送出這個字</span>' +
-          '<span><span class="kbd">Ctrl</span>+<span class="kbd">\'</span> 播放發音</span>' +
-          '<span><span class="kbd">Ctrl</span>+<span class="kbd">;</span> 顯示答案</span>' +
-          '<span><span class="kbd">Enter</span> 送出</span>' +
-        '</div>');
+      : '');
   }
 
   /** 步驟完成後的動作按鈕 */
@@ -364,6 +406,10 @@
     tstate.missCount = 0;
     tstate.finished = false;
     tstate.revealAll = false;
+    tstate.tokErr = 0;
+    tstate.givenUp = false;
+    tstate.skipped = false;
+    tstate.autoNextIn = 0;
     tstate.startedAt = Date.now();
   }
 
@@ -380,6 +426,9 @@
     var step = chain.steps[tstate.stepIdx];
     if (!step) return;
 
+    /* 已經放棄三次並顯示答案的字：空白 = 跳過，不再糾纏 */
+    if (tstate.givenUp) { skipWord(); return; }
+
     var tokens = WM.text.tokenize(step.en);
     var tok = tokens[tstate.tokIdx];
     if (!tok) return;
@@ -391,6 +440,8 @@
       /* --- 答對 --- */
       tstate.typed = '';
       tstate.wrong = false;
+      tstate.tokErr = 0;
+      tstate.givenUp = false;
       tstate.tokIdx++;
 
       if (tstate.tokIdx >= tokens.length) {
@@ -402,16 +453,57 @@
         focusTyper();
       }
     } else {
-      /* --- 打錯：標紅並鎖住，使用者必須刪掉重打 --- */
+      /* --- 打錯：標紅並鎖住，必須刪掉重打 --- */
       tstate.wrong = true;
       tstate.missCount++;
+      tstate.tokErr = (tstate.tokErr || 0) + 1;
       WM.audio.chime(false);
+
+      /* 同一個字錯三次 → 顯示答案並唸一次，之後 Enter 重練 / 空白跳過 */
+      if (tstate.tokErr >= MAX_STRIKES) {
+        tstate.givenUp = true;
+        tstate.typed = '';
+        tstate.wrong = false;
+        WM.speech.speak(tok.word);
+      }
+
       render();
       var el = $('#typer');
-      if (el) { try { el.focus(); el.select(); } catch (e) { /* 忽略 */ } }
+      if (el && !tstate.givenUp) { try { el.focus(); el.select(); } catch (e) { /* 忽略 */ } }
     }
   }
 
+  /** 錯三次的字：Enter 重新練一次 */
+  function retryWord() {
+    if (!tstate.givenUp) return;
+    tstate.givenUp = false;
+    tstate.tokErr = 0;
+    tstate.typed = '';
+    tstate.wrong = false;
+    render();
+    focusTyper();
+  }
+
+  /** 錯三次的字：空白跳過，直接往下一個字 */
+  function skipWord() {
+    var pack = packById(tstate.packId);
+    var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
+    if (!pack || !chain) return;
+    var step = chain.steps[tstate.stepIdx];
+    if (!step) return;
+
+    tstate.givenUp = false;
+    tstate.tokErr = 0;
+    tstate.typed = '';
+    tstate.wrong = false;
+    tstate.skipped = true;                 /* 這一步有字是靠「跳過」過關的 */
+
+    tstate.tokIdx++;
+    if (tstate.tokIdx >= WM.text.tokenize(step.en).length) finishStep();
+    else { render(); focusTyper(); }
+  }
+
+  /** 整個步驟完成。回傳是否應該自動接下一個步驟 */
   function finishStep() {
     var pack = packById(tstate.packId);
     var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
@@ -419,16 +511,27 @@
 
     tstate.finished = true;
     var wasMistake = tstate.missCount > 0;
-    WM.packs.completeStep(pack.id, chain.id, tstate.stepIdx, wasMistake);
+    var wasSkipped = !!tstate.skipped;
+    WM.packs.completeStep(pack.id, chain.id, tstate.stepIdx, wasMistake, wasSkipped);
 
     /* 整串輸入完畢 → 再把這一串完整念一次 */
     var step = chain.steps[tstate.stepIdx];
     WM.audio.chime(true);
-    if (step) {
-      WM.speech.speak(step.en, {
-        onend: function () { renderNextActions(); }
-      });
+    if (step) WM.speech.speak(step.en);
+
+    /* 下一個步驟是「短詞組」（三個字以內）就自動接下去，讓你可以一路連打；
+       碰到完整句子（四個字以上）才停下來等你確認。 */
+    var next = chain.steps[tstate.stepIdx + 1];
+    if (next && WM.text.tokenize(next.en).length <= 3) {
+      tstate.autoNextIn = 1100;
+      render();
+      renderNextActions();
+      setTimeout(function () {
+        if (tstate.finished && tstate.autoNextIn) { tstate.autoNextIn = 0; goNextStep(); }
+      }, 1100);
+      return;
     }
+
     render();
     renderNextActions();
   }
@@ -444,6 +547,10 @@
     tstate.wrong = false;
     tstate.finished = false;
     tstate.revealAll = false;
+    tstate.tokErr = 0;
+    tstate.givenUp = false;
+    tstate.skipped = false;
+    tstate.autoNextIn = 0;
     render();
     focusTyper();
     if (WM.store.get('autoPlay')) {
@@ -474,6 +581,10 @@
     tstate.wrong = false;
     tstate.finished = false;
     tstate.revealAll = false;
+    tstate.tokErr = 0;
+    tstate.givenUp = false;
+    tstate.skipped = false;
+    tstate.autoNextIn = 0;
     tstate.missCount = 0;
     render();
     focusTyper();
@@ -1077,6 +1188,8 @@
       if (a === 'next-step') goNextStep();
       else if (a === 'next-chain') goNextChain();
       else if (a === 'retry-step') retryStep();
+      else if (a === 'retry-word') retryWord();
+      else if (a === 'skip-word') skipWord();
       return;
     }
 
@@ -1158,6 +1271,13 @@
         toast('已顯示答案，繼續照著打就好');
         return;
       }
+    }
+
+    /* 錯三次、答案已顯示的狀態：Enter 重新練 / 空白 跳過
+       （此時沒有輸入框，所以要另外攔） */
+    if (onLearn && tstate.givenUp && !tstate.finished) {
+      if (e.key === 'Enter') { e.preventDefault(); retryWord(); return; }
+      if (e.key === ' ')     { e.preventDefault(); skipWord(); return; }
     }
 
     /* 打字輸入框：空白 / Enter = 送出並比對 */

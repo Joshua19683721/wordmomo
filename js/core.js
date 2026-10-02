@@ -221,7 +221,7 @@
     packs: null,        // null = 還沒初始化，啟動時從內建字庫建立
     removedBuiltIn: [], // 使用者主動刪掉的內建字庫，之後不會自動補回來
     progress: {},       // '<packId>/<chainId>' -> { step, done, lastAt, tries, miss }
-    log: {},            // 'YYYY-MM-DD' -> { steps, chains, miss }
+    log: {},            // 'YYYY-MM-DD' -> { steps, chains, miss, skip }
     lastPack: ''
   };
 
@@ -273,7 +273,7 @@
 
     today: function () {
       var k = WM.util.dateKey();
-      if (!this.state.log[k]) this.state.log[k] = { steps: 0, chains: 0, miss: 0 };
+      if (!this.state.log[k]) this.state.log[k] = { steps: 0, chains: 0, miss: 0, skip: 0 };
       return this.state.log[k];
     },
 
@@ -711,7 +711,7 @@
       var c = this.getChain(packId, chainId);
       var total = c ? c.steps.length : 0;
       var rec = WM.store.state.progress[packId + '/' + chainId];
-      if (!rec) return { step: 0, total: total, done: false, lastAt: 0, tries: 0, miss: 0, pct: 0 };
+      if (!rec) return { step: 0, total: total, done: false, lastAt: 0, tries: 0, miss: 0, skip: 0, pct: 0 };
       return {
         step: rec.step || 0,
         total: total,
@@ -719,20 +719,24 @@
         lastAt: rec.lastAt || 0,
         tries: rec.tries || 0,
         miss: rec.miss || 0,
+        skip: rec.skip || 0,
         pct: total ? Math.min(100, Math.round(((rec.step || 0) / total) * 100)) : 0
       };
     },
 
-    /** 完成一個步驟，回傳是不是剛剛把整條鏈讀完 */
-    completeStep: function (packId, chainId, stepIndex, wasMistake) {
+    /** 完成一個步驟，回傳是不是剛剛把整條鏈讀完
+     *  @param wasMistake 這一步有沒有打錯過（但後來打對了）
+     *  @param wasSkipped 這一步有沒有靠「跳過」過關 */
+    completeStep: function (packId, chainId, stepIndex, wasMistake, wasSkipped) {
       var key = packId + '/' + chainId;
       if (!WM.store.state.progress[key]) {
-        WM.store.state.progress[key] = { step: 0, done: false, lastAt: 0, tries: 0, miss: 0 };
+        WM.store.state.progress[key] = { step: 0, done: false, lastAt: 0, tries: 0, miss: 0, skip: 0 };
       }
       var rec = WM.store.state.progress[key];
       rec.step = Math.max(rec.step, stepIndex + 1);
       rec.tries = (rec.tries || 0) + 1;
       if (wasMistake) rec.miss = (rec.miss || 0) + 1;
+      if (wasSkipped) rec.skip = (rec.skip || 0) + 1;
       rec.lastAt = Date.now();
 
       var c = this.getChain(packId, chainId);
@@ -743,6 +747,7 @@
       var t = WM.store.today();
       t.steps += 1;
       if (wasMistake) t.miss += 1;
+      if (wasSkipped) t.skip = (t.skip || 0) + 1;
       if (isLast && !wasDone) t.chains += 1;
 
       WM.store.save();
@@ -837,7 +842,7 @@
     todayProgress: function () {
       var t = WM.store.today();
       var goal = WM.store.get('dailyGoal') || 20;
-      return { done: t.steps, goal: goal, pct: Math.min(100, Math.round((t.steps / goal) * 100)), miss: t.miss };
+      return { done: t.steps, goal: goal, pct: Math.min(100, Math.round((t.steps / goal) * 100)), miss: t.miss || 0, skip: t.skip || 0 };
     },
 
     overview: function () {
@@ -866,7 +871,7 @@
       for (var i = n - 1; i >= 0; i--) {
         var t = new Date(d); t.setDate(d.getDate() - i);
         var k = WM.util.dateKey(t.getTime());
-        var e = log[k] || { steps: 0, chains: 0, miss: 0 };
+        var e = log[k] || { steps: 0, chains: 0, miss: 0, skip: 0 };
         out.push({ key: k, steps: e.steps, chains: e.chains, miss: e.miss });
       }
       return out;

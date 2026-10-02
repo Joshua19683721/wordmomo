@@ -337,6 +337,31 @@ html[data-theme="dark"] .ladder__mark { background: rgba(255,255,255,.07); }
 }
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
 
+/* 錯三次：顯示答案的面板 */
+.practice.is-giveup { border-color: rgba(242,163,60,.5); }
+.slot.is-giveup {
+  background: rgba(242,163,60,.16);
+  box-shadow: inset 0 0 0 1.5px var(--warn);
+}
+.slot.is-giveup .slot__txt { color: var(--warn); }
+.giveup {
+  text-align: center;
+  padding: 18px 16px;
+  border-radius: var(--r-md);
+  background: rgba(242,163,60,.08);
+  border: 1px solid rgba(242,163,60,.35);
+}
+.giveup__title { color: var(--warn); font-weight: 700; font-size: .92rem; }
+.giveup__word {
+  font-family: ui-monospace,"Cascadia Mono",Consolas,monospace;
+  font-size: clamp(1.2rem,4vw,1.8rem); font-weight: 700;
+  margin: 8px 0 4px; letter-spacing: .01em;
+}
+.giveup .kbd { margin-inline: 2px; }
+
+/* 完成但有跳過過關的步驟 */
+.practice.is-weak { border-color: rgba(242,163,60,.45); }
+
 /* 快捷鍵說明列 */
 .shortcuts {
   display: flex; flex-wrap: wrap; justify-content: center;
