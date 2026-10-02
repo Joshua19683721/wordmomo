@@ -13,7 +13,7 @@
      再從那裡匯出成 JS 片段貼回這個檔案，就會跟著 GitHub 一起更新。
    ============================================================ */
 window.WORDMOMO_DATA = {
-  version: 2,
+  version: 3,
   packs: [
     {
       id: 'daily',
@@ -1456,6 +1456,84 @@ window.WORDMOMO_DATA = {
           steps: [
             { en: 'hallucination', zh: '幻覺、憑空捏造', ipa: '/həˌluːsɪˈneɪʃən/' },
             { en: 'Models can invent facts, so check every source.', zh: '模型可能會憑空捏造內容，所以每個來源都要查證。', ipa: '' }
+          ]
+        }
+      ]
+    },
+
+    /* ---------- 自定義1：由你提供的漸進式內容 ---------- */
+    {
+      id: 'custom1',
+      name: '自定義1',
+      icon: '🎯',
+      level: 'B1',
+      desc: '由單字到整句的漸進式練習',
+      chains: [
+        {
+          id: 'custom1-001',
+          steps: [
+            { en: 'action', zh: '行動', ipa: '/ˈækʃn/' },
+            { en: 'We', zh: '我們', ipa: '/wiː/' },
+            { en: 'should', zh: '應該', ipa: '/ʃʊd/' },
+            { en: 'We should', zh: '我們應該', ipa: '/wiː ʃʊd/' },
+            { en: 'take', zh: '採取', ipa: '/teɪk/' },
+            { en: 'We should take', zh: '我們應該採取', ipa: '/wiː ʃʊd teɪk/' },
+            { en: 'action', zh: '行動', ipa: '/ˈækʃn/' },
+            { en: 'take action', zh: '採取行動', ipa: '/teɪk ˈækʃn/' },
+            { en: 'We should take action', zh: '我們應該採取行動', ipa: '/wiː ʃʊd teɪk ˈækʃn/' },
+            { en: 'now', zh: '現在', ipa: '/naʊ/' },
+            { en: 'take action now', zh: '現在採取行動', ipa: '/teɪk ˈækʃn naʊ/' },
+            { en: 'We should take action now', zh: '我們現在應該採取行動', ipa: '/wiː ʃʊd teɪk ˈækʃn naʊ/' }
+          ]
+        },
+        {
+          id: 'custom1-002',
+          steps: [
+            { en: 'actor', zh: '男演員', ipa: '/ˈæktər/' },
+            { en: 'Andy Lau', zh: '劉德華', ipa: '/ˈændi laʊ/' },
+            { en: 'is', zh: '是', ipa: '/ɪz/' },
+            { en: 'Andy Lau is', zh: '劉德華是', ipa: '/ˈændi laʊ ɪz/' },
+            { en: 'a good actor', zh: '一個好的男演員', ipa: '/ə ɡʊd ˈæktər/' },
+            { en: 'is a good actor', zh: '是一個好的男演員', ipa: '/ɪz ə ɡʊd ˈæktər/' },
+            { en: 'Andy Lau is a good actor', zh: '劉德華是一個好的男演員', ipa: '/ˈændi laʊ ɪz ə ɡʊd ˈæktər/' }
+          ]
+        },
+        {
+          id: 'custom1-003',
+          steps: [
+            { en: 'actress', zh: '女演員', ipa: '/ˈæktrəs/' },
+            { en: 'Audrey', zh: '奧黛麗', ipa: '/ˈɔːdri/' },
+            { en: 'is', zh: '是', ipa: '/ɪz/' },
+            { en: 'Audrey is', zh: '奧黛麗是', ipa: '/ˈɔːdri ɪz/' },
+            { en: 'my favorite', zh: '我最喜歡的', ipa: '/maɪ ˈfeɪvərɪt/' },
+            { en: 'Audrey is my favorite', zh: '奧黛麗是我最喜歡的', ipa: '/ˈɔːdri ɪz maɪ ˈfeɪvərɪt/' },
+            { en: 'actress', zh: '女演員', ipa: '/ˈæktrəs/' },
+            { en: 'my favorite actress', zh: '我最喜歡的女演員', ipa: '/maɪ ˈfeɪvərɪt ˈæktrəs/' },
+            { en: 'Audrey is my favorite actress', zh: '奧黛麗是我最喜歡的女演員', ipa: '/ˈɔːdri ɪz maɪ ˈfeɪvərɪt ˈæktrəs/' }
+          ]
+        },
+        {
+          id: 'custom1-004',
+          steps: [
+            { en: 'around', zh: '到處', ipa: '/əˈraʊnd/' },
+            { en: 'Let\'s', zh: '我們', ipa: '/lets/' },
+            { en: 'walk', zh: '散步', ipa: '/wɔːk/' },
+            { en: 'Let\'s walk', zh: '我們走吧', ipa: '/lets wɔːk/' },
+            { en: 'around', zh: '四處', ipa: '/əˈraʊnd/' },
+            { en: 'walk around', zh: '四處走走', ipa: '/wɔːk əˈraʊnd/' },
+            { en: 'Let\'s walk around', zh: '我們四處走走吧', ipa: '/lets wɔːk əˈraʊnd/' }
+          ]
+        },
+        {
+          id: 'custom1-005',
+          steps: [
+            { en: 'band', zh: '樂團', ipa: '/bænd/' },
+            { en: 'This band', zh: '這個樂團', ipa: '/ðɪs bænd/' },
+            { en: 'is', zh: '是', ipa: '/ɪz/' },
+            { en: 'This band is', zh: '這個樂團是', ipa: '/ðɪs bænd ɪz/' },
+            { en: 'popular', zh: '受歡迎的', ipa: '/ˈpɒpjələr/' },
+            { en: 'very popular', zh: '非常受歡迎', ipa: '/ˈveri ˈpɒpjələr/' },
+            { en: 'This band is very popular', zh: '這個樂團非常受歡迎', ipa: '/ðɪs bænd ɪz ˈveri ˈpɒpjələr/' }
           ]
         }
       ]

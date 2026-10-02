@@ -207,7 +207,7 @@
      隨時可以「還原成內建字庫」重置。
      ------------------------------------------------------------ */
   var DEFAULTS = {
-    version: 2,
+    version: 3,
     settings: {
       dailyGoal: 20,
       rate: 0.9,
@@ -217,6 +217,7 @@
       typeSound: true
     },
     packs: null,        // null = 還沒初始化，啟動時從內建字庫建立
+    removedBuiltIn: [], // 使用者主動刪掉的內建字庫，之後不會自動補回來
     progress: {},       // '<packId>/<chainId>' -> { step, done, lastAt, tries, miss }
     log: {},            // 'YYYY-MM-DD' -> { steps, chains, miss }
     lastPack: ''
@@ -250,8 +251,14 @@
       this.state = deepMerge(DEFAULTS, data || {});
       this.state.progress = this.state.progress || {};
       this.state.log = this.state.log || {};
+      this.state.removedBuiltIn = this.state.removedBuiltIn || [];
       if (!Array.isArray(this.state.packs) || !this.state.packs.length) {
         this.state.packs = WM.packs.cloneBuiltIn();
+      } else {
+        /* 網站更新後新增的內建字庫，補進舊的存檔裡。
+           使用者改過或刪過的字庫不會被覆蓋或撿回來。 */
+        var added = WM.packs.mergeMissingBuiltIn();
+        if (added.length) this.save();
       }
       return this.state;
     },
@@ -407,6 +414,31 @@
     all: function () { return WM.store.state.packs; },
     first: function () { return WM.store.state.packs[0] || null; },
 
+    /** 這個 id 是不是內建字庫（相對於 js/data.js） */
+    isBuiltIn: function (id) {
+      var src = (global.WORDMOMO_DATA && global.WORDMOMO_DATA.packs) || [];
+      return src.some(function (p) { return p.id === id; });
+    },
+
+    /**
+     * 把「網站更新後新增的內建字庫」補進舊的存檔。
+     * 已經存在的字庫一律不動（保留使用者的改名與編輯），
+     * 使用者曾經刪掉的內建字庫也不會撿回來。
+     * @returns {string[]} 本次補上的字庫 id
+     */
+    mergeMissingBuiltIn: function () {
+      var st = WM.store.state;
+      var removed = st.removedBuiltIn || [];
+      var added = [];
+      this.cloneBuiltIn().forEach(function (bp) {
+        if (this.idExists(bp.id)) return;             /* 已經有了 → 不動它 */
+        if (removed.indexOf(bp.id) !== -1) return;   /* 使用者刪過 → 不撿回來 */
+        st.packs.push(bp);
+        added.push(bp.id);
+      }.bind(this));
+      return added;
+    },
+
     get: function (id) {
       var list = WM.store.state.packs;
       for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
@@ -457,6 +489,13 @@
       for (var i = 0; i < list.length; i++) {
         if (list[i].id !== id) continue;
         list.splice(i, 1);
+
+        /* 記下「使用者刪過這個內建字庫」，網站下次更新不會又冒出來 */
+        if (this.isBuiltIn(id)) {
+          var rm = WM.store.state.removedBuiltIn || (WM.store.state.removedBuiltIn = []);
+          if (rm.indexOf(id) === -1) rm.push(id);
+        }
+
         var prefix = id + '/';
         Object.keys(WM.store.state.progress).forEach(function (k) {
           if (k.indexOf(prefix) === 0) delete WM.store.state.progress[k];
@@ -483,6 +522,7 @@
     /** 還原成出廠狀態（內建字庫內容 + 清空進度） */
     restoreBuiltIn: function () {
       WM.store.state.packs = this.cloneBuiltIn();
+      WM.store.state.removedBuiltIn = [];   /* 清除「刪過內建字庫」的紀錄 */
       WM.store.resetProgress();
       return true;
     },
