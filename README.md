@@ -2,6 +2,8 @@
 
 > 互動式英語單字學習網站 — 純 HTML / CSS / JavaScript，不需要安裝任何東西，開瀏覽器就能用。
 
+🌐 **線上版**：<https://joshua19683721.github.io/wordmomo/>
+
 把單字「看過」不難，難的是記住。WordMomo 用**單字卡 + 間隔重複 + 即時測驗**三個機制，
 讓你在最適合的時間看到最適合的單字。
 
@@ -138,29 +140,20 @@ wordmomo/
 
 ## 🚀 部署到 GitHub Pages
 
-`.github/workflows/pages.yml` 已經設定好了，**每次 push 到 `main` 就會自動部署**。
+`.github/workflows/pages.yml` 已經設定好了，**每次 push 到 `main` 就會自動部署**，
+大約 30 秒到 1 分鐘後線上版就會更新。
 
-第一次啟用需要手動做一件事：
+🌐 **線上網址：https://joshua19683721.github.io/wordmomo/**
 
-1. 到 GitHub 倉庫 → **Settings** → 左側 **Pages**
-2. **Source** 選 **GitHub Actions**
-3. 按 **Save**
+Pages 的來源已經設為 **GitHub Actions** 並啟用完成，不需要再設定。
+若日後要查看或修改：GitHub 倉庫 → **Settings** → 左側 **Pages**。
 
-接著到 **Settings** → **Pages** 頂端會出現網址，形如：
-`https://joshua19683721.github.io/wordmomo/`
-
-> 也可以把 `index.html` 改成 `wordmomo/index.html` 這種相對路徑，
-> 這樣網站放在子路徑下也不會壞掉。目前的寫法已經是相對路徑，可直接使用。
-
----
-
-## 🔄 開發流程
+整個流程就是：
 
 ```bash
-git status              # 看改了什麼
 git add .
-git commit -m "新增旅遊字庫"
-git push                # 推送，網站會自動更新
+git commit -m "改了些什麼"
+git push        # 推上去，線上版自動更新
 ```
 
 ---
