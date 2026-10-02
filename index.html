@@ -1,171 +1,750 @@
 <!DOCTYPE html>
-<html lang="zh-Hant" data-theme="dark">
+<html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WordMomo — 漸進式英語學習</title>
-<meta name="description" content="WordMomo：由單字、詞組、句子到完整段落的漸進式英語打字練習。">
-<meta name="theme-color" content="#0c0d1a">
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>循序漸進句子拼寫練習 App</title>
+  <style>
+    :root {
+      --bg-main: #0f1117;
+      --bg-card: #181b24;
+      --bg-input: #222736;
+      --accent-purple: #a855f7;
+      --accent-purple-hover: #9333ea;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --text-main: #ffffff;
+      --text-muted: #6b7280;
+      --border-color: #2e3548;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    /* 頂部控制列 */
+    header {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      padding: 12px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .controls-group {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .control-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    select, button {
+      background: var(--bg-input);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 8px 12px;
+      border-radius: 6px;
+      outline: none;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    select:focus, button:hover {
+      border-color: var(--accent-purple);
+    }
+
+    .btn-primary {
+      background: var(--accent-purple);
+      border: none;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-purple-hover);
+    }
+
+    /* 主要內容區域 */
+    main {
+      width: 100%;
+      max-width: 950px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 40px 0;
+      flex-grow: 1;
+    }
+
+    .prompt-container {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .prompt-zh {
+      font-size: 2.2rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .prompt-ipa {
+      font-size: 1.2rem;
+      color: #c084fc;
+      background: rgba(168, 85, 247, 0.1);
+      padding: 4px 16px;
+      border-radius: 20px;
+      display: inline-block;
+      font-family: "Courier New", Courier, monospace;
+    }
+
+    .interactive-area {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    /* 單字排版容器 */
+    .words-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 32px 14px;
+      max-width: 900px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .word-box {
+      display: flex;
+      align-items: flex-end;
+      position: relative;
+    }
+
+    /* 獨立底線輸入框容器 */
+    .input-wrapper {
+      position: relative;
+      display: inline-block;
+      height: 48px;
+      border-bottom: 2px solid #6b7280;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: 'Consolas', 'Courier New', Courier, monospace !important;
+      font-size: 32px !important;
+      font-weight: 600 !important;
+    }
+
+    /* 聚焦狀態 */
+    .input-wrapper.focus {
+      border-bottom-color: #c084fc;
+      box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+    }
+
+    /* 錯誤狀態 */
+    .input-wrapper.error {
+      border-bottom-color: var(--accent-red);
+      animation: shake 0.3s ease-in-out;
+    }
+
+    /* 完成狀態 */
+    .input-wrapper.correct {
+      border-bottom-color: #c084fc;
+    }
+
+    /* 輸入框主體 */
+    .word-input {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100% !important;
+      font-family: inherit !important;
+      font-size: inherit !important;
+      font-weight: inherit !important;
+      line-height: 46px !important;
+      text-align: center !important;
+      letter-spacing: 1px !important;
+      padding: 0 4px !important;
+      margin: 0 !important;
+      border: none !important;
+      box-sizing: border-box !important;
+      background: transparent !important;
+      color: #ffffff;
+      outline: none !important;
+      z-index: 2;
+      caret-color: #c084fc;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .word-input.correct {
+      color: #c084fc;
+    }
+
+    .word-input.error {
+      color: var(--accent-red);
+    }
+
+    /* 上方浮水印提示層 */
+    .watermark-layer {
+      position: absolute;
+      top: -26px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      text-align: center;
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      font-size: 15px;
+      font-weight: 600;
+      color: #a855f7;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 3;
+      letter-spacing: 1px;
+      opacity: 0.9;
+    }
+
+    .wm-typed {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .wm-untyped {
+      color: #c084fc;
+      text-decoration: underline;
+    }
+
+    /* 標點符號 */
+    .punctuation {
+      font-size: 32px;
+      font-weight: 500;
+      color: var(--text-main);
+      margin-left: -6px;
+      margin-right: 6px;
+      padding-bottom: 2px;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-4px); }
+      40%, 80% { transform: translateX(4px); }
+    }
+
+    .status-banner {
+      width: 100%;
+      max-width: 700px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--accent-green);
+      color: var(--accent-green);
+      padding: 12px 20px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 1rem;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .bottom-bar {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: var(--bg-input);
+      border-color: var(--accent-purple);
+    }
+
+    .action-btn.purple {
+      background: var(--accent-purple);
+      border-color: var(--accent-purple);
+    }
+
+    .action-btn.purple:hover {
+      background: var(--accent-purple-hover);
+    }
+
+    /* 匯入彈窗 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 650px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .modal-body textarea {
+      width: 100%;
+      height: 250px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 12px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      resize: vertical;
+      outline: none;
+      margin-bottom: 16px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+  </style>
 </head>
 <body>
 
-<!-- 啟動畫面 -->
-<div id="splash" class="splash">
-  <div class="splash__logo">momo</div>
-  <div class="splash__bar"><i></i></div>
-</div>
-
-<!-- 頂部列 -->
-<header class="topbar">
-  <a class="brand" href="#/" aria-label="回到儀表板"><span class="brand__mark">momo</span></a>
-
-  <nav class="nav" id="nav">
-    <a class="nav__link" href="#/"      data-view="dashboard"><span class="nav__ico">◎</span>儀表板</a>
-    <a class="nav__link" href="#/learn" data-view="learn"><span class="nav__ico">✎</span>學習</a>
-    <a class="nav__link" href="#/packs" data-view="packs"><span class="nav__ico">▤</span>字庫</a>
-    <a class="nav__link" href="#/stats" data-view="stats"><span class="nav__ico">▦</span>統計</a>
-  </nav>
-
-  <div class="topbar__right">
-    <div class="streak-chip" id="streakChip" title="連續學習天數">
-      <span class="streak-chip__flame">🔥</span>
-      <span id="streakNum">0</span><span class="streak-chip__unit">天</span>
-    </div>
-    <button class="icon-btn" id="themeBtn" title="切換深色／淺色" aria-label="切換佈景主題">◐</button>
-    <button class="icon-btn" data-open-settings title="設定" aria-label="開啟設定">⚙</button>
-  </div>
-</header>
-
-<!-- 主要內容 -->
-<main id="app" class="app" role="main"></main>
-
-<!-- 底部行動列 -->
-<nav class="tabbar" id="tabbar">
-  <a class="tabbar__link" href="#/"      data-view="dashboard"><span>◎</span>儀表板</a>
-  <a class="tabbar__link" href="#/learn" data-view="learn"><span>✎</span>學習</a>
-  <a class="tabbar__link" href="#/packs" data-view="packs"><span>▤</span>字庫</a>
-  <a class="tabbar__link" href="#/stats" data-view="stats"><span>▦</span>統計</a>
-</nav>
-
-<!-- 設定抽屜 -->
-<div class="drawer" id="settingsDrawer" hidden>
-  <div class="drawer__scrim" data-close-drawer></div>
-  <div class="drawer__panel" role="dialog" aria-label="設定">
-    <header class="drawer__head">
-      <h2>設定</h2>
-      <button class="icon-btn" data-close-drawer aria-label="關閉">✕</button>
-    </header>
-    <div class="drawer__body">
-      <section class="field">
-        <label for="setGoal">每日目標（完成幾個步驟）</label>
-        <div class="field__row">
-          <input type="range" id="setGoal" min="5" max="100" step="5">
-          <output id="setGoalOut">20</output>
-        </div>
-      </section>
-
-      <section class="field">
-        <label for="setSpeechRate">發音語速</label>
-        <div class="field__row">
-          <input type="range" id="setSpeechRate" min="0.5" max="1.3" step="0.05">
-          <output id="setSpeechRateOut">0.90</output>
-        </div>
-      </section>
-
-      <section class="field">
-        <label for="setTtsVendor">發音引擎（供應商）</label>
-        <select id="setTtsVendor"></select>
-        <p class="hint" id="vendorHint">正在偵測瀏覽器語音…</p>
-      </section>
-
-      <section class="field">
-        <label for="setVoice">發音聲音</label>
-        <select id="setVoice"></select>
-        <p class="hint" id="voiceHint">正在偵測瀏覽器語音…</p>
-      </section>
-
-      <section class="field field--row">
-        <label for="setAutoPlay">換步驟時自動發音</label>
-        <input type="checkbox" id="setAutoPlay" class="switch">
-      </section>
-
-      <section class="field field--row">
-        <label for="setTypeSound">打字音效</label>
-        <input type="checkbox" id="setTypeSound" class="switch">
-      </section>
-
-      <section class="field field--row">
-        <label for="setReveal">打完一個字就顯示它</label>
-        <input type="checkbox" id="setReveal" class="switch">
-      </section>
-
-      <section class="field">
-        <div class="btn-row">
-          <button class="btn btn--ghost" id="exportBtn">匯出全部進度</button>
-          <button class="btn btn--ghost" id="importBtn">匯入進度</button>
-        </div>
-        <input type="file" id="importFile" accept="application/json" hidden>
-        <p class="hint">包含字庫內容與學習紀錄，換瀏覽器或換裝置時用。</p>
-      </section>
-
-      <section class="field">
-        <div class="btn-row">
-          <button class="btn btn--ghost" id="clearProgressBtn">只清除學習紀錄</button>
-          <button class="btn btn--danger" id="resetBtn">全部重設為內建字庫</button>
-        </div>
-        <p class="hint">「全部重設」會把你自訂的字庫也一併刪掉，無法復原。</p>
-      </section>
-    </div>
-  </div>
-</div>
-
-<!-- 字庫編輯視窗 -->
-<div class="modal" id="packModal" hidden>
-  <div class="modal__scrim" data-close-modal></div>
-  <div class="modal__panel" role="dialog" aria-label="編輯字庫">
-    <header class="modal__head">
-      <h2 id="packModalTitle">編輯字庫</h2>
-      <button class="icon-btn" data-close-modal aria-label="關閉">✕</button>
-    </header>
-    <div class="modal__body" id="packModalBody"></div>
-    <footer class="modal__foot">
-      <button class="btn btn--ghost" data-close-modal>取消</button>
-      <button class="btn btn--primary" id="packModalDone">儲存並關閉</button>
-    </footer>
-  </div>
-</div>
-
-<!-- 匯出預覽視窗 -->
-<div class="modal" id="exportModal" hidden>
-  <div class="modal__scrim" data-close-modal></div>
-  <div class="modal__panel" role="dialog" aria-label="匯出字庫程式碼">
-    <header class="modal__head">
-      <h2>匯出成 js/data.js 片段</h2>
-      <button class="icon-btn" data-close-modal aria-label="關閉">✕</button>
-    </header>
-    <div class="modal__body">
-      <p class="hint" style="margin-bottom:12px">
-        複製下面整段，貼回專案的 <code>js/data.js</code> 取代舊內容，
-        再 <code>git push</code> 就會變成所有裝置共用的固定版本。
-      </p>
-      <div class="field__row" style="margin-bottom:10px; flex-wrap:wrap">
-        <select id="exportScope" class="input" style="max-width:220px">
-          <option value="all">全部字庫</option>
-        </select>
-        <button class="btn btn--primary" id="copyExportBtn">複製</button>
-        <button class="btn btn--ghost" id="downloadExportBtn">下載 data.js</button>
+  <header>
+    <div class="controls-group">
+      <div class="control-item">
+        <label for="voiceSelect">🔊 語音：</label>
+        <select id="voiceSelect"><option>載入中...</option></select>
       </div>
-      <textarea id="exportText" class="input code-area" readonly rows="18" spellcheck="false"></textarea>
+      <div class="control-item">
+        <label for="repeatCountSelect">🔁 錯3次自動朗讀次數：</label>
+        <select id="repeatCountSelect">
+          <option value="1">1 次</option>
+          <option value="2">2 次</option>
+          <option value="3" selected>3 次</option>
+          <option value="4">4 次</option>
+          <option value="5">5 次</option>
+        </select>
+      </div>
+    </div>
+    <div class="controls-group">
+      <button class="btn-primary" id="openImportBtn">📥 匯入句庫</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="prompt-container">
+      <div class="prompt-zh" id="promptZh">載入中...</div>
+      <div class="prompt-ipa" id="promptIpa">/ ... /</div>
+    </div>
+
+    <div class="interactive-area">
+      <div class="words-container" id="wordsContainer"></div>
+    </div>
+
+    <div class="status-banner" id="statusBanner">
+      <span>✔ 整句拼寫完成！按 <strong>Space</strong> 進入下一個單元，或按 <strong>Enter</strong> 重新練習本句。</span>
+    </div>
+  </main>
+
+  <div class="bottom-bar">
+    <button class="action-btn" id="speakFullBtn">
+      <span>Alt + '</span> <span>▶ 朗讀全句</span>
+    </button>
+    <button class="action-btn" id="prevCardBtn">
+      <span>Alt + P</span> <span>上一句</span>
+    </button>
+    <button class="action-btn" id="nextCardBtn">
+      <span>Alt + N</span> <span>下一句</span>
+    </button>
+    <button class="action-btn purple" id="restartBtn">
+      <span>Enter</span> <span>重練本句</span>
+    </button>
+  </div>
+
+  <div class="modal-overlay" id="importModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">匯入自訂句庫 (格式：英文 = 中文 = 音標)</div>
+        <button id="closeImportBtn" style="background:transparent; border:none; font-size:1.2rem; color:var(--text-muted); cursor:pointer;">✕</button>
+      </div>
+      <div class="modal-body">
+        <textarea id="importTextarea" placeholder="請貼上句庫內容..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelImportBtn">取消</button>
+        <button class="btn-primary" id="submitImportBtn">確認匯入</button>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+  <script>
+    const defaultRawText = `This = 這 = /ðɪs/
+This is = 這是 = /ðɪs ɪz/
+not planned = 未預先計劃的 = /nɑːt plænd/
+This is not planned = 這不是預先計劃好的 = /ðɪs ɪz nɑːt plænd/
+Oh no, this is not planned = 噢不，這完全不在計劃中 = /əʊ nəʊ, ðɪs ɪz nɑːt plænd/
+Mr. President = 總統先生 = /ˈmɪstər ˈprezɪdənt/
+calling = 來電 = /ˈkɔːlɪŋ/
+If it wasn't because of you calling = 如果不是因為您打電話來 = /ɪf ɪt wɑːznˈt bɪˈkəz əv juː ˈkɔːlɪŋ/
+I am on stage = 我正在舞台上 = /aɪ æm ɑːn steɪdʒ/
+If it wasn't because of you calling, I am on stage with the besties. = 如果不是因為您打電話來，我現在正跟好朋友在台上呢。 = /ɪf ɪt wɑːznˈt bɪˈkəz əv juː ˈkɔːlɪŋ, aɪ æm ɑːn steɪdʒ wɪð ðə ˈbestiːz/`;
 
-<script src="js/data.js"></script>
-<script src="js/core.js"></script>
-<script src="js/app.js"></script>
+    let dataset = [];
+    let currentIndex = 0;
+    let selectedVoice = null;
+    let wordErrorCounts = [];
+    let isWatermarkActive = [];
+
+    const promptZh = document.getElementById('promptZh');
+    const promptIpa = document.getElementById('promptIpa');
+    const wordsContainer = document.getElementById('wordsContainer');
+    const voiceSelect = document.getElementById('voiceSelect');
+    const repeatCountSelect = document.getElementById('repeatCountSelect');
+    const statusBanner = document.getElementById('statusBanner');
+    const prevCardBtn = document.getElementById('prevCardBtn');
+    const nextCardBtn = document.getElementById('nextCardBtn');
+    const speakFullBtn = document.getElementById('speakFullBtn');
+    const restartBtn = document.getElementById('restartBtn');
+
+    const importModal = document.getElementById('importModal');
+    const openImportBtn = document.getElementById('openImportBtn');
+    const closeImportBtn = document.getElementById('closeImportBtn');
+    const cancelImportBtn = document.getElementById('cancelImportBtn');
+    const submitImportBtn = document.getElementById('submitImportBtn');
+    const importTextarea = document.getElementById('importTextarea');
+
+    function parseRawText(text) {
+      const lines = text.split('\n').filter(l => l.trim() !== '');
+      return lines.map(line => {
+        const parts = line.split(/=|＝/).map(p => p.trim());
+        return {
+          en: parts[0] || '',
+          zh: parts[1] || '',
+          ipa: parts[2] || ''
+        };
+      }).filter(item => item.en !== '');
+    }
+
+    function initVoices() {
+      if (!('speechSynthesis' in window)) return;
+      const voices = speechSynthesis.getVoices();
+      voiceSelect.innerHTML = '';
+      const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+      englishVoices.sort((a, b) => {
+        const aScore = (a.name.includes('Google') ? 2 : 0) + (a.name.includes('Microsoft') ? 1 : 0);
+        const bScore = (b.name.includes('Google') ? 2 : 0) + (b.name.includes('Microsoft') ? 1 : 0);
+        return bScore - aScore;
+      });
+      englishVoices.forEach(voice => {
+        const option = document.createElement('option');
+        option.value = voice.name;
+        option.textContent = `${voice.name} (${voice.lang})`;
+        voiceSelect.appendChild(option);
+      });
+      if (englishVoices.length > 0) selectedVoice = englishVoices[0];
+      voiceSelect.addEventListener('change', () => {
+        selectedVoice = voices.find(v => v.name === voiceSelect.value);
+      });
+    }
+    if ('speechSynthesis' in window) {
+      speechSynthesis.onvoiceschanged = initVoices;
+      initVoices();
+    }
+
+    function speakText(text, repeatCount = 1) {
+      if (!('speechSynthesis' in window) || !text) return;
+      const cleanText = text.replace(/[^a-zA-Z0-9\s']/g, '');
+      if (!cleanText.trim()) return;
+      speechSynthesis.cancel();
+      for (let i = 0; i < repeatCount; i++) {
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        if (selectedVoice) utterance.voice = selectedVoice;
+        utterance.rate = 0.9;
+        speechSynthesis.speak(utterance);
+      }
+    }
+
+    function renderCard(index) {
+      if (dataset.length === 0) return;
+      currentIndex = index;
+      const currentData = dataset[currentIndex];
+
+      promptZh.textContent = currentData.zh;
+      promptIpa.textContent = currentData.ipa || '';
+      statusBanner.style.display = 'none';
+      wordsContainer.innerHTML = '';
+      
+      const tokens = currentData.en.match(/([a-zA-Z0-9']+)|([^a-zA-Z0-9'\s]+)/g) || [];
+      wordErrorCounts = [];
+      isWatermarkActive = [];
+      let wordIndex = 0;
+
+      tokens.forEach((token) => {
+        const isWord = /[a-zA-Z0-9']/.test(token);
+
+        if (isWord) {
+          const idx = wordIndex;
+          wordErrorCounts[idx] = 0;
+          isWatermarkActive[idx] = false;
+
+          const wordBox = document.createElement('div');
+          wordBox.className = 'word-box';
+
+          const wrapper = document.createElement('div');
+          wrapper.className = 'input-wrapper';
+
+          const watermark = document.createElement('div');
+          watermark.className = 'watermark-layer';
+          watermark.id = `watermark_${idx}`;
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'word-input';
+          input.dataset.target = token;
+          input.dataset.index = idx;
+          input.autocomplete = "off";
+          input.autocorrect = "off";
+          input.autocapitalize = "off";
+          input.spellcheck = false;
+
+          const charLength = Math.max(token.length, 1);
+          wrapper.style.width = `calc(${charLength}ch + 1.2em)`;
+          wrapper.style.minWidth = '2.5em';
+
+          input.addEventListener('focus', () => wrapper.classList.add('focus'));
+          input.addEventListener('blur', () => wrapper.classList.remove('focus'));
+          input.addEventListener('input', (e) => handleWordInput(e, input, wrapper, watermark, token, idx));
+          input.addEventListener('keydown', (e) => handleWordKeyDown(e, input, token, idx));
+
+          wrapper.appendChild(watermark);
+          wrapper.appendChild(input);
+          wordBox.appendChild(wrapper);
+          wordsContainer.appendChild(wordBox);
+
+          wordIndex++;
+        } else if (token.trim() !== '') {
+          const punctSpan = document.createElement('span');
+          punctSpan.className = 'punctuation';
+          punctSpan.textContent = token;
+          wordsContainer.appendChild(punctSpan);
+        }
+      });
+
+      speakText(currentData.en, 1);
+      setTimeout(() => {
+        const firstInput = wordsContainer.querySelector('input');
+        if (firstInput) firstInput.focus();
+      }, 50);
+    }
+
+    function updateWatermark(input, watermarkLayer, targetWord) {
+      const typed = input.value;
+      if (targetWord.toLowerCase().startsWith(typed.toLowerCase())) {
+        const typedLen = typed.length;
+        const matchedPart = targetWord.substring(0, typedLen);
+        const remainingPart = targetWord.substring(typedLen);
+        watermarkLayer.innerHTML = `<span class="wm-typed">${matchedPart}</span><span class="wm-untyped">${remainingPart}</span>`;
+      } else {
+        watermarkLayer.innerHTML = `<span class="wm-untyped">${targetWord}</span>`;
+      }
+    }
+
+    function handleWordInput(e, input, wrapper, watermarkLayer, targetWord, wordIdx) {
+      const value = input.value;
+      if (!targetWord.toLowerCase().startsWith(value.toLowerCase())) {
+        input.classList.add('error');
+        wrapper.classList.add('error');
+        wrapper.classList.remove('correct');
+        input.classList.remove('correct');
+        wordErrorCounts[wordIdx]++;
+
+        // 錯滿 3 次即觸發浮水印與朗讀
+        if (wordErrorCounts[wordIdx] >= 3) {
+          isWatermarkActive[wordIdx] = true;
+          updateWatermark(input, watermarkLayer, targetWord);
+          const repeatTimes = parseInt(repeatCountSelect.value, 10) || 3;
+          speakText(targetWord, repeatTimes);
+        }
+      } else {
+        input.classList.remove('error');
+        wrapper.classList.remove('error');
+
+        if (isWatermarkActive[wordIdx]) {
+          updateWatermark(input, watermarkLayer, targetWord);
+        }
+
+        if (value.toLowerCase() === targetWord.toLowerCase()) {
+          input.value = targetWord;
+          watermarkLayer.innerHTML = '';
+          input.classList.add('correct');
+          wrapper.classList.add('correct');
+          focusNextInput(wordIdx);
+          checkSentenceCompletion();
+        }
+      }
+    }
+
+    function handleWordKeyDown(e, input, targetWord, wordIdx) {
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        if (isSentenceComplete()) {
+          nextCard();
+        } else {
+          speakText(targetWord, 1);
+        }
+        return;
+      }
+      if (input.classList.contains('error')) {
+        if (e.key !== 'Backspace' && e.key !== 'Delete' && !e.ctrlKey && !e.altKey && e.key !== 'Enter') {
+          e.preventDefault();
+        }
+      }
+    }
+
+    function focusNextInput(currentIdx) {
+      const inputs = Array.from(wordsContainer.querySelectorAll('input'));
+      if (currentIdx + 1 < inputs.length) {
+        inputs[currentIdx + 1].focus();
+      }
+    }
+
+    function isSentenceComplete() {
+      const inputs = Array.from(wordsContainer.querySelectorAll('input'));
+      return inputs.every(input => input.value.toLowerCase() === input.dataset.target.toLowerCase());
+    }
+
+    function checkSentenceCompletion() {
+      if (isSentenceComplete()) {
+        statusBanner.style.display = 'flex';
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.altKey && (e.key === "'" || e.code === 'Quote')) {
+        e.preventDefault();
+        speakText(dataset[currentIndex].en, 1);
+        return;
+      }
+      if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        nextCard();
+        return;
+      }
+      if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        prevCard();
+        return;
+      }
+      if (e.key === 'Enter') {
+        const isModalOpen = importModal.style.display === 'flex';
+        if (!isModalOpen) {
+          e.preventDefault();
+          renderCard(currentIndex);
+        }
+      }
+      if (document.activeElement.tagName !== 'TEXTAREA') {
+        if (e.key === 'ArrowRight') nextCard();
+        else if (e.key === 'ArrowLeft') prevCard();
+      }
+    });
+
+    function nextCard() {
+      if (currentIndex < dataset.length - 1) renderCard(currentIndex + 1);
+    }
+    function prevCard() {
+      if (currentIndex > 0) renderCard(currentIndex - 1);
+    }
+
+    prevCardBtn.addEventListener('click', prevCard);
+    nextCardBtn.addEventListener('click', nextCard);
+    speakFullBtn.addEventListener('click', () => speakText(dataset[currentIndex].en, 1));
+    restartBtn.addEventListener('click', () => renderCard(currentIndex));
+    
+    openImportBtn.addEventListener('click', () => { importModal.style.display = 'flex'; });
+    closeImportBtn.addEventListener('click', () => { importModal.style.display = 'none'; });
+    cancelImportBtn.addEventListener('click', () => { importModal.style.display = 'none'; });
+    submitImportBtn.addEventListener('click', () => {
+      const customText = importTextarea.value.trim();
+      if (customText) {
+        const parsed = parseRawText(customText);
+        if (parsed.length > 0) {
+          dataset = parsed;
+          renderCard(0);
+          importModal.style.display = 'none';
+        } else {
+          alert('無法解析，請確認格式為：英文 = 中文 = 音標');
+        }
+      }
+    });
+
+    dataset = parseRawText(defaultRawText);
+    renderCard(0);
+  </script>
 </body>
 </html>

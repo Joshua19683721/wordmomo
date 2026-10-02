@@ -28,11 +28,12 @@ jobs:
       - name: 設定 Pages
         uses: actions/configure-pages@v5
 
-      # 這個網站是純靜態 HTML，不需要建置步驟，直接把原始檔當成網站根目錄
+      # 這個網站是單一檔案的純靜態 HTML，不需要建置步驟，
+      # 直接把 index.html 當成網站根目錄
       - name: 打包靜態網站
         run: |
           mkdir -p _site
-          cp -r index.html css js assets _site/
+          cp index.html _site/
           echo "部署完成，共 $(find _site -type f | wc -l) 個檔案"
 
       - name: 上傳到 Pages
