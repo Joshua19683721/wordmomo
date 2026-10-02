@@ -1,42 +1,35 @@
 /* ============================================================
    WordMomo — 介面主程式
    ------------------------------------------------------------
-   這個檔案負責「畫畫面 + 接收互動」：
-     1. 小工具與全域綁定
-     2. 儀表板（總覽、今日單字、字庫選擇）
-     3. 單字卡（翻卡 + 語音 + 熟悉度評分）
-     4. 測驗（四種模式 + 計分 + 錯題回顧）
-     5. 統計（學習曲線、連續天數heatmap、掌握度）
-     6. 設定抽屜（目標、語速、音色、匯出匯入）
-     7. 路由與啟動
-   想加新頁面？在 views 物件裡加一個函式，再把 nav 加一顆即可。
+   1. 小工具
+   2. 儀表板
+   3. 學習頁（漸進式打字練習）★ 核心
+   4. 字庫管理頁（新增／修改／刪除）
+   5. 統計頁
+   6. 設定、字庫編輯視窗、匯出
+   7. 路由與啟動
    ============================================================ */
 (function () {
   'use strict';
 
   var WM = window.WM;
-  var DATA = window.WORDMOMO_DATA || { packs: [] };
-  var packs = DATA.packs || [];
-  var $ = function (sel) { return document.querySelector(sel); };
+  var $ = function (s) { return document.querySelector(s); };
   var esc = function (s) { return WM.util.esc(s); };
 
-  /* 把所有單字攤平成一份清單，並給每個單字一個唯一 id */
-  var allWords = [];
-  packs.forEach(function (p) {
-    p.words.forEach(function (w) {
-      allWords.push({ pack: p, word: w, id: p.id + '/' + w.w });
-    });
-  });
-  function findPack(id) {
-    for (var i = 0; i < packs.length; i++) if (packs[i].id === id) return packs[i];
-    return packs[0];
-  }
-  function recOf(id) { return WM.store.record(id); }
+  var ICONS = ['📦','🎯','☕','💼','✈️','📚','💻','🗣️','🎨','🧪','🏥','🍳','⚽','🎵','🧠','🌍','🛠️','📝','🔬','🍜'];
+  var LEVELS = ['A1','A2','B1','B2','C1','C2'];
 
-  /* 各頁面暫存（切換頁面時不會消失） */
-  var session = {
-    study: { packId: null, queue: [], idx: 0, flipped: false, correct: 0, done: false },
-    quiz:  { mode: null, packId: null, total: 10, items: [], idx: 0, answered: false, results: [], lastAnswer: null, done: false }
+  /* 打字練習的暫存狀態 */
+  var tstate = {
+    packId: null,
+    chainId: null,
+    stepIdx: 0,
+    tokIdx: 0,
+    typed: '',
+    wrong: false,        // 目前的單字是不是打錯過
+    missCount: 0,        // 這一頁總共打錯幾次
+    finished: false,     // 整個步驟完成
+    startedAt: 0
   };
 
   /* ============================================================
@@ -51,24 +44,7 @@
     setTimeout(function () {
       el.classList.add('is-out');
       setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
-    }, 2300);
-  }
-
-  function speak(text, onStart, onEnd) {
-    var btn = document.querySelector('.speak-btn.is-playing');
-    if (btn) btn.classList.remove('is-playing');
-    WM.speech.speak(text, {
-      onstart: function () {
-        var b = document.querySelector('.speak-btn');
-        if (b) b.classList.add('is-playing');
-        if (onStart) onStart();
-      },
-      onend: function () {
-        var b = document.querySelector('.speak-btn');
-        if (b) b.classList.remove('is-playing');
-        if (onEnd) onEnd();
-      }
-    });
+    }, 2200);
   }
 
   function applyTheme(theme) {
@@ -83,7 +59,7 @@
     return '<svg viewBox="0 0 116 116" aria-hidden="true">' +
       '<circle class="ring__track" cx="58" cy="58" r="' + R + '"></circle>' +
       '<circle class="ring__value" cx="58" cy="58" r="' + R + '" ' +
-        'stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"></circle>' +
+      'stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"></circle>' +
       '</svg>';
   }
 
@@ -94,44 +70,60 @@
       '<div class="stat-tile__lab">' + label + '</div></div></div>';
   }
 
+  function packById(id) { return WM.packs.get(id); }
+  function lastPack() {
+    var p = packById(WM.store.get('lastPack')) || WM.packs.first();
+    return p;
+  }
+
   /* ============================================================
      2. 儀表板
      ============================================================ */
   function viewDashboard() {
-    var ov = WM.stats.overview(packs);
+    var ov = WM.stats.overview();
     var today = ov.today;
+    var pack = lastPack();
 
-    /* 今日單字：依日期決定，每天固定但會換 */
-    var dayIndex = Math.floor(WM.util.startOfDay(WM.util.dateKey()) / WM.util.DAY);
-    var dw = allWords[dayIndex % allWords.length];
+    if (!pack) {
+      return '<div class="card empty"><div class="empty__ico">📭</div>' +
+        '<h2>還沒有任何字庫</h2><p>到「字庫」頁新增一個，或重設為內建字庫。</p>' +
+        '<a class="btn btn--primary" href="#/packs">前往字庫管理</a></div>';
+    }
 
-    var packHTML = packs.map(function (p) {
+    var daily = WM.stats.dailyChain(pack);
+    var firstStep = daily && daily.steps.length ? daily.steps[0] : null;
+    var packStats = WM.stats.packProgress(pack);
+
+    var packHTML = WM.packs.all().map(function (p) {
       var s = WM.stats.packProgress(p);
-      return '<button class="pack" data-start-pack="' + p.id + '">' +
+      return '<a class="pack" href="#/learn/' + p.id + '">' +
         '<div class="pack__ico">' + p.icon + '</div>' +
         '<div class="pack__body">' +
-          '<div class="pack__name">' + esc(p.name) + ' <span class="pill">' + esc(p.level) + '</span></div>' +
-          '<div class="pack__meta">' + s.learned + ' / ' + s.total + ' 詞' +
-            (s.due > 0 ? ' · <span style="color:var(--warn)">' + s.due + ' 待複習</span>' : '') + '</div>' +
-          '<div class="bar pack__bar"><div class="bar__fill" style="width:' + s.pct + '%"></div></div>' +
+          '<div class="pack__name">' + esc(p.name) +
+            ' <span class="pill">' + esc(p.level) + '</span>' +
+            (p.custom ? ' <span class="pill pill--brand">自訂</span>' : '') + '</div>' +
+          '<div class="pack__meta">' + s.done + ' / ' + s.total + ' 條完成 · ' +
+            s.stepsDone + ' / ' + s.stepsAll + ' 步驟</div>' +
+          '<div class="bar pack__bar"><div class="bar__fill" style="width:' + s.stepPct + '%"></div></div>' +
         '</div>' +
-        '<div class="pack__pct">' + s.pct + '%</div>' +
-      '</button>';
+        '<div class="pack__pct">' + s.stepPct + '%</div>' +
+      '</a>';
     }).join('');
 
     return '' +
     '<section class="hero">' +
       '<div class="hero__text">' +
-        '<p class="hero__hi">' + WM.util.greeting() + '，今天的單字准备好了嗎？</p>' +
-        '<h1 class="hero__title">已複習 ' + today.done + ' / ' + today.goal + ' 張單字卡</h1>' +
+        '<p class="hero__hi">' + WM.util.greeting() + '，今天練了嗎？</p>' +
+        '<h1 class="hero__title">已完成 ' + today.done + ' / ' + today.goal + ' 個步驟</h1>' +
         '<p class="hero__sub">' +
-          (ov.due > 0
-            ? '目前有 <strong>' + ov.due + '</strong> 個單字等你複習。'
-            : '今天的複習都完成了，繼續挑戰新單字吧！') +
+          (today.done >= today.goal
+            ? '今天的目標達成了，明天繼續！'
+            : '照著中文把英文打出來，打錯就會卡住必須重打。') +
+          (today.miss ? '　這次共打錯 ' + today.miss + ' 次。' : '') +
         '</p>' +
         '<div class="btn-row" style="margin-top:16px">' +
-          '<a class="btn btn--lg" href="#/study" style="background:#fff;color:var(--brand-700);border:0">開始學習 ▸</a>' +
-          '<a class="btn btn--lg btn--ghost" href="#/quiz" style="border-color:rgba(255,255,255,.5);color:#fff">直接測驗</a>' +
+          '<a class="btn btn--lg" href="#/learn" style="background:#fff;color:var(--brand-700);border:0">開始練習 ▸</a>' +
+          '<a class="btn btn--lg btn--ghost" href="#/packs" style="border-color:rgba(255,255,255,.5);color:#fff">管理字庫</a>' +
         '</div>' +
       '</div>' +
       '<div class="ring">' + ringSVG(today.pct) +
@@ -142,538 +134,666 @@
 
     '<div class="grid grid--4" style="margin-bottom:18px">' +
       statTile('🔥', ov.streak, '連續天數') +
-      statTile('📚', ov.learned + ' / ' + ov.totalWords, '已學單字') +
-      statTile('🏆', ov.mastered, '已掌握') +
-      statTile('✅', ov.quiz.total ? WM.util.pct(ov.quiz.right, ov.quiz.total) : '—', '測驗正確率') +
+      statTile('📖', ov.done + ' / ' + ov.chains, '完成條數') +
+      statTile('✎', ov.stepsDone + ' / ' + ov.stepsAll, '完成步驟') +
+      statTile('📦', ov.packs, '字庫數') +
     '</div>' +
 
     '<div class="stack">' +
-      '<section class="card">' +
-        '<div class="card__head"><h2 class="card__title">今日單字</h2>' +
-        '<span class="pill pill--brand">每天一顆</span></div>' +
-        '<div class="daily-word">' +
-          '<div class="daily-word__w">' + esc(dw.word.w) + '</div>' +
-          '<div class="daily-word__ipa">' + esc(dw.word.ipa) + ' <span class="pill">' + esc(dw.word.pos) + '</span></div>' +
-          '<div class="daily-word__zh">' + esc(dw.word.zh) + '</div>' +
-          '<button class="speak-btn" data-speak="' + esc(dw.word.w) + '" aria-label="播放發音">🔊</button>' +
-          '<p class="daily-word__en" style="margin-top:16px">' + esc(dw.word.en) + '</p>' +
-          '<p class="daily-word__zhen">' + esc(dw.word.zhEn) + '</p>' +
+      (firstStep ? '<section class="card">' +
+        '<div class="card__head"><h2 class="card__title">今日練習</h2>' +
+        '<span class="pill pill--brand">' + pack.icon + ' ' + esc(pack.name) + '</span></div>' +
+        '<div class="daily">' +
+          '<div class="daily__zh">' + esc(firstStep.zh) + '</div>' +
+          '<div class="daily__ipa">' + (firstStep.ipa ? esc(firstStep.ipa) : '<span class="muted">（整句不標音標）</span>') + '</div>' +
+          '<button class="speak-btn" data-speak="' + esc(firstStep.en) + '" aria-label="播放發音">🔊</button>' +
+          '<p class="daily__hint">點喇叭聽發音，或按 <span class="kbd">Ctrl</span>+<span class="kbd">P</span></p>' +
         '</div>' +
-      '</section>' +
+        '<div class="btn-row" style="justify-content:center;margin-top:6px">' +
+          '<a class="btn btn--primary" href="#/learn/' + pack.id + '/' + (daily ? daily.id : '') + '">開始 ▸</a>' +
+        '</div>' +
+      '</section>' : '') +
 
       '<section class="card">' +
-        '<div class="card__head"><h2 class="card__title">選擇字庫</h2>' +
-        '<span class="card__sub">共 ' + packs.length + ' 個主題</span></div>' +
+        '<div class="card__head"><h2 class="card__title">所有字庫</h2>' +
+        '<a class="btn btn--sm btn--ghost" href="#/packs">管理</a></div>' +
         '<div class="stack" style="gap:10px">' + packHTML + '</div>' +
       '</section>' +
     '</div>';
   }
 
   /* ============================================================
-     3. 單字卡
+     3. 學習頁 —— 漸進式打字練習
      ============================================================ */
-  function startStudy(packId, keepHash) {
-    var pack = findPack(packId || WM.store.get('lastPack') || packs[0].id);
-    WM.store.set('lastPack', pack.id);
 
-    var ranked = WM.srs.queue(pack.words, function (w) { return pack.id + '/' + w.w; }, recOf);
-    var goal = WM.store.get('dailyGoal') || 20;
-
-    /* 到期該複習的排前面，再補上還沒學過的。
-       注意：未學過的單字 isDue() 也會回 true，所以要扣掉 isNew 才不會重複排兩次。 */
-    var due   = ranked.filter(function (r) { return r.due && !r.isNew; });
-    var fresh = ranked.filter(function (r) { return r.isNew; });
-    var picked = due.concat(fresh).slice(0, goal);
-
-    if (!picked.length) picked = ranked.slice(0, goal);   // 全都還沒到期 → 隨機複習
-
-    session.study = {
-      packId: pack.id, pack: pack,
-      queue: picked, idx: 0, flipped: false, correct: 0, done: false
-    };
-
-    if (!keepHash) {
-      location.hash = '#/study/' + pack.id;   /* 深層連結：#/study/tech 可以直接連到某個字庫 */
-      render();                               /* hash 沒變時不會觸發 hashchange，所以主動重畫 */
+  /** 沒有選字庫時：顯示字庫選擇 */
+  function learnPackPicker() {
+    var packs = WM.packs.all();
+    if (!packs.length) {
+      return '<div class="card empty"><div class="empty__ico">📭</div>' +
+        '<h2>還沒有任何字庫</h2>' +
+        '<a class="btn btn--primary" href="#/packs">去新增一個字庫</a></div>';
     }
+    return '<section class="card card--pad-lg">' +
+      '<div class="card__head"><div><h2 class="card__title">選擇要練的字庫</h2>' +
+      '<p class="card__sub">每一條「漸進鏈」都會從單字一路帶到完整句子</p></div></div>' +
+      '<div class="stack" style="gap:10px">' +
+        packs.map(function (p) {
+          var s = WM.stats.packProgress(p);
+          return '<a class="pack" href="#/learn/' + p.id + '">' +
+            '<div class="pack__ico">' + p.icon + '</div>' +
+            '<div class="pack__body"><div class="pack__name">' + esc(p.name) + '</div>' +
+            '<div class="pack__meta">' + s.total + ' 條漸進鏈 · 已完成 ' + s.done + ' 條</div>' +
+            '<div class="bar pack__bar"><div class="bar__fill" style="width:' + s.stepPct + '%"></div></div>' +
+            '</div><div class="pack__pct">' + s.stepPct + '%</div></a>';
+        }).join('') +
+      '</div></section>';
   }
 
-  function viewStudy() {
-    var s = session.study;
-
-    /* 深層連結 #/study/<packId>：直接開課 */
-    var want = routeArg();
-    if (want && packs.some(function (p) { return p.id === want; })) {
-      if (s.packId !== want) {
-        startStudy(want, true);
-        s = session.study;              /* startStudy 會重新指派 session.study，要重新抓一次 */
-        location.replace('#/study/' + want);
-      }
-    }
-
-    if (!s.packId) {
-      /* 還沒選字庫 → 顯示選擇畫面 */
-      return '<div class="stack">' +
-        '<section class="card card--pad-lg">' +
-          '<div class="card__head"><div><h2 class="card__title">選擇要學的字庫</h2>' +
-          '<p class="card__sub">系統會優先安排「到期該複習」和「還沒學過」的單字</p></div></div>' +
-          '<div class="stack" style="gap:10px">' +
-            packs.map(function (p) {
-              var st = WM.stats.packProgress(p);
-              return '<button class="pack" data-start-pack="' + p.id + '">' +
-                '<div class="pack__ico">' + p.icon + '</div>' +
-                '<div class="pack__body"><div class="pack__name">' + esc(p.name) + '</div>' +
-                '<div class="pack__meta">' + st.due + ' 待複習 · ' + st.total + ' 總詞數</div></div>' +
-                '<div class="pack__pct">' + st.pct + '%</div></button>';
-            }).join('') +
-          '</div>' +
-        '</section></div>';
-    }
-
-    if (s.done || s.idx >= s.queue.length) return studySummary();
-
-    var row = s.queue[s.idx];
-    var w = row.item;
-    var zhFirst = !!WM.store.get('zhFirst');
-
-    /* 正面：看英文（預設）或看中文（zhFirst 開啟時，訓練「回想」而非「認得」）
-       背面：永遠是完整的解說 */
-    var speakBtn = '<button class="speak-btn" data-speak="' + esc(w.w) + '" aria-label="播放發音">🔊</button>';
-
-    var frontHTML = zhFirst
-      ? '<div class="flash__zh">' + esc(w.zh) + '</div>' +
-        '<div class="flash__ipa">' + esc(w.pos) + ' · ' + esc(w.en) + '</div>' +
-        speakBtn +
-        '<div class="flash__hint">先自己回想英文，再翻面對答案</div>'
-      : '<div class="flash__w">' + esc(w.w) + '</div>' +
-        '<div class="flash__ipa">' + esc(w.ipa) + ' <span class="pill">' + esc(w.pos) + '</span></div>' +
-        speakBtn +
-        '<div class="flash__hint">點卡片翻面</div>';
-
-    var front = '<div class="flash__face flash__face--front">' + frontHTML + '</div>';
-    var back =
-      '<div class="flash__face flash__face--back">' +
-        '<div class="flash__w" style="font-size:1.6rem">' + esc(w.w) + '</div>' +
-        '<div class="flash__ipa">' + esc(w.ipa) + ' <span class="pill">' + esc(w.pos) + '</span></div>' +
-        '<div class="flash__zh">' + esc(w.zh) + '</div>' +
-        speakBtn +
-        '<p class="flash__en">' + esc(w.en) + '</p>' +
-        '<p class="flash__zhen">' + esc(w.zhEn) + '</p>' +
-      '</div>';
+  /** 選了字庫但沒選鏈：顯示漸進鏈列表 */
+  function learnChainList(pack) {
+    var s = WM.stats.packProgress(pack);
+    var rows = pack.chains.map(function (c, i) {
+      var pr = WM.packs.chainProgress(pack.id, c.id);
+      var first = c.steps[0] || { en: '', zh: '' };
+      var badge = pr.done ? '<span class="pill pill--ok">已完成</span>'
+                 : pr.step > 0 ? '<span class="pill pill--warn">進行中 ' + pr.step + '/' + pr.total + '</span>'
+                 : '<span class="pill">未開始</span>';
+      return '<a class="chain-row' + (pr.done ? ' is-done' : '') + '" href="#/learn/' + pack.id + '/' + c.id + '">' +
+        '<span class="chain-row__no">' + (i + 1) + '</span>' +
+        '<span class="chain-row__body">' +
+          '<span class="chain-row__zh">' + esc(first.zh || '(未填中文)') + '</span>' +
+          '<span class="chain-row__en">' + esc(first.en || '(未填英文)') + '</span>' +
+        '</span>' +
+        '<span class="chain-row__steps">' + c.steps.length + ' 步</span>' +
+        badge +
+      '</a>';
+    }).join('');
 
     return '' +
     '<div class="study__bar">' +
-      '<a class="btn btn--ghost btn--sm" href="#/">← 儀表板</a>' +
-      '<div class="seg" id="studyPackSeg">' +
-        packs.map(function (p) {
-          return '<button class="seg__btn' + (p.id === s.packId ? ' is-active' : '') +
-                 '" data-switch-pack="' + p.id + '">' + p.icon + ' ' + esc(p.name) + '</button>';
-        }).join('') +
+      '<a class="btn btn--ghost btn--sm" href="#/learn">← 字庫</a>' +
+      '<h2 style="margin:0">' + pack.icon + ' ' + esc(pack.name) + '</h2>' +
+      '<div class="study__count">' + s.done + ' / ' + s.total + ' 條完成</div>' +
+    '</div>' +
+    '<div class="bar" style="margin-bottom:16px"><div class="bar__fill" style="width:' + s.stepPct + '%"></div></div>' +
+    (pack.chains.length
+      ? '<div class="chain-list">' + rows + '</div>'
+      : '<div class="card empty"><div class="empty__ico">✎</div><h2>這個字庫還沒有內容</h2>' +
+        '<p>到「字庫」頁編輯，加入第一條漸進鏈。</p>' +
+        '<a class="btn btn--primary" href="#/packs">編輯字庫</a></div>');
+  }
+
+  /** 練習中的畫面 */
+  function learnPractice(pack, chain) {
+    var step = chain.steps[tstate.stepIdx];
+    if (!step) return learnChainList(pack);
+
+    var tokens = WM.text.tokenize(step.en);
+    var pr = WM.packs.chainProgress(pack.id, chain.id);
+
+    /* 漸進階梯 */
+    var ladder = chain.steps.map(function (st, i) {
+      var cls = i < tstate.stepIdx ? 'is-done'
+              : i === tstate.stepIdx ? 'is-now'
+              : 'is-todo';
+      var mark = i < tstate.stepIdx ? '✓' : (i === tstate.stepIdx ? '●' : String(i + 1));
+      return '<li class="ladder__item ' + cls + '">' +
+        '<span class="ladder__mark">' + mark + '</span>' +
+        '<span class="ladder__zh">' + esc(st.zh || '…') + '</span>' +
+      '</li>';
+    }).join('');
+
+    /* 逐字顯示 */
+    var wordHTML = tokens.map(function (t, i) {
+      var cls = 'tw';
+      if (i < tstate.tokIdx) cls += ' is-ok';
+      if (i === tstate.tokIdx) {
+        cls += ' is-now';
+        if (tstate.wrong) cls += ' is-wrong';   /* 打錯 → 標紅鎖住，必須重打 */
+      }
+      var inner = '';
+      if (i === tstate.tokIdx) {
+        var typedCore = WM.text.core(tstate.typed);
+        var donePart = typedCore.slice(0, tstate.typed.length);
+        var rest = t.core.slice(typedCore.length);
+        inner = '<span class="tw__ok">' + esc(donePart) + '</span>' +
+                '<span class="tw__caret"></span>' +
+                '<span class="tw__rest">' + esc(rest) + '</span>';
+      } else if (i < tstate.tokIdx) {
+        /* 已經打對的字：整個顯示成綠色 */
+        inner = '<span class="tw__ok">' + esc(t.core) + '</span>';
+      } else {
+        inner = '<span class="tw__rest">' + esc(t.core) + '</span>';
+      }
+      return '<span class="' + cls + '" data-tok="' + i + '">' +
+        (t.lead ? '<span class="tw__pun">' + esc(t.lead) + '</span>' : '') +
+        inner +
+        (t.tail ? '<span class="tw__pun">' + esc(t.tail) + '</span>' : '') +
+      '</span>';
+    }).join(' ');
+
+    return '' +
+    '<div class="study__bar">' +
+      '<a class="btn btn--ghost btn--sm" href="#/learn/' + pack.id + '">← ' + esc(pack.name) + '</a>' +
+      '<div class="study__count">步驟 ' + (tstate.stepIdx + 1) + ' / ' + chain.steps.length +
+        '　·　鏈 ' + (WM.packs.chainIndex(pack.id, chain.id) + 1) + ' / ' + pack.chains.length + '</div>' +
+    '</div>' +
+
+    '<div class="bar" style="margin-bottom:16px"><div class="bar__fill" style="width:' +
+      Math.round((tstate.stepIdx / chain.steps.length) * 100) + '%"></div></div>' +
+
+    '<ol class="ladder">' + ladder + '</ol>' +
+
+    '<section class="card card--pad-lg practice' + (tstate.finished ? ' is-finished' : '') + '">' +
+      '<div class="practice__zh">' + esc(step.zh) + '</div>' +
+      '<div class="practice__ipa">' + (step.ipa ? esc(step.ipa) : '<span class="muted">整句不標音標，直接用發音按鈕聽</span>') + '</div>' +
+      '<button class="speak-btn" data-speak="' + esc(step.en) + '" aria-label="播放發音">🔊</button>' +
+
+      '<div class="practice__type">' +
+        '<div class="words" id="words">' + wordHTML + '</div>' +
+        (tstate.finished
+          ? '<div class="practice__done" id="practiceDone"></div>'
+          : '<div class="typerow">' +
+              '<input class="input typerow__input" id="typer" type="text" autocomplete="off" ' +
+                'autocapitalize="off" autocorrect="off" spellcheck="false" ' +
+                'value="' + esc(tstate.typed) + '" ' +
+                'placeholder="照著上面的英文打，按空白鍵送出這個字">' +
+              '<span class="typerow__state" id="typerState">' +
+                (tstate.wrong ? '打錯了，刪掉重打' : '第 ' + (tstate.tokIdx + 1) + ' / ' + tokens.length + ' 個字') +
+              '</span>' +
+            '</div>') +
       '</div>' +
-      '<div class="study__count">' + (s.idx + 1) + ' / ' + s.queue.length + '</div>' +
-    '</div>' +
+    '</section>' +
 
-    '<div class="bar" style="margin-bottom:18px"><div class="bar__fill" style="width:' +
-      Math.round((s.idx / s.queue.length) * 100) + '%"></div></div>' +
-
-    '<div class="flash' + (s.flipped ? ' is-flipped' : '') + '" id="flashCard">' +
-      '<div class="flash__inner">' + front + back + '</div>' +
-    '</div>' +
-
-    '<div class="grade" id="gradeRow">' +
-      '<button class="btn btn--bad btn--lg" data-grade="0">還不熟 <span class="kbd">←</span></button>' +
-      '<button class="btn btn--ok btn--lg" data-grade="3">很簡單 <span class="kbd">→</span></button>' +
-    '</div>' +
-
-    '<p style="text-align:center;color:var(--text-3);font-size:.82rem;margin-top:16px">' +
-      '快捷鍵：<span class="kbd">空白</span> 翻面 · <span class="kbd">←</span> 不熟 · <span class="kbd">→</span> 簡單' +
-    '</p>';
+    (tstate.finished
+      ? '<div class="btn-row" style="justify-content:center;margin-top:18px" id="nextActions"></div>'
+      : '<p class="practice__help">打完一個字按 <span class="kbd">空白</span> → 確認並唸出這個字。' +
+        '整句打完會再整句唸一次。發音：<span class="kbd">Ctrl</span>+<span class="kbd">P</span></p>');
   }
 
-  function studySummary() {
-    var s = session.study;
-    var total = s.queue.length;
-    var rate = total ? Math.round((s.correct / total) * 100) : 0;
-    var msg = rate >= 90 ? '太強了！' : rate >= 70 ? '不錯喔！' : rate >= 40 ? '繼續加油！' : '再複習幾輪就會記住了。';
-    return '<section class="card card--pad-lg quiz__done">' +
-      '<div style="font-size:3rem">' + (rate >= 70 ? '🎉' : '💪') + '</div>' +
-      '<h2>本輪完成！</h2>' +
-      '<div class="quiz__score">' + rate + '<small>% 正確率</small></div>' +
-      '<p style="color:var(--text-2)">' + msg + '</p>' +
-      '<p style="color:var(--text-3);font-size:.9rem">共複習 ' + total + ' 張單字卡</p>' +
-      '<div class="btn-row" style="justify-content:center;margin-top:20px">' +
-        '<button class="btn btn--primary" data-restart-study>再學一輪</button>' +
-        '<a class="btn btn--ghost" href="#/quiz">做個測驗</a>' +
-        '<a class="btn btn--ghost" href="#/">回到儀表板</a>' +
-      '</div></section>';
+  /** 步驟完成後的動作按鈕 */
+  function renderNextActions() {
+    var box = $('#nextActions');
+    if (!box) return;
+    var pack = packById(tstate.packId);
+    var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
+    if (!pack || !chain) return;
+
+    var btns = '';
+    if (tstate.stepIdx + 1 < chain.steps.length) {
+      btns += '<button class="btn btn--primary btn--lg" data-act="next-step">下一個步驟 ▸</button>';
+    }
+    var nextChain = pack.chains[WM.packs.chainIndex(pack.id, chain.id) + 1];
+    if (nextChain) {
+      btns += '<button class="btn btn--lg" data-act="next-chain">下一條漸進鏈 ▸</button>';
+    }
+    btns += '<a class="btn btn--ghost" href="#/learn/' + pack.id + '">回到鏈列表</a>';
+    btns += '<button class="btn btn--ghost" data-act="retry-step">再打一次</button>';
+    box.innerHTML = btns;
   }
 
-  function flipCard() {
-    var s = session.study;
-    if (s.done) return;
-    s.flipped = !s.flipped;
-    var card = $('#flashCard');
-    if (card) card.classList.toggle('is-flipped', s.flipped);
-    /* 翻到背面時自動念出例句，幫助建立情境記憶 */
-    if (s.flipped && WM.store.get('autoPlay')) {
-      var w = s.queue[s.idx].item;
-      setTimeout(function () { speak(w.en); }, 340);
+  /* ---------- 打字引擎 ---------- */
+
+  function initPractice(pack, chain) {
+    var pr = WM.packs.chainProgress(pack.id, chain.id);
+    tstate.packId = pack.id;
+    tstate.chainId = chain.id;
+    /* 從上次進度接著練，已完成則從頭開始複習 */
+    tstate.stepIdx = pr.done ? 0 : Math.min(pr.step, chain.steps.length - 1);
+    tstate.tokIdx = 0;
+    tstate.typed = '';
+    tstate.wrong = false;
+    tstate.missCount = 0;
+    tstate.finished = false;
+    tstate.startedAt = Date.now();
+  }
+
+  function focusTyper() {
+    var el = $('#typer');
+    if (el && !el.disabled) { try { el.focus(); } catch (e) { /* 忽略 */ } }
+  }
+
+  /** 送出目前這個單字進行比對 */
+  function commitWord() {
+    var pack = packById(tstate.packId);
+    var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
+    if (!pack || !chain) return;
+    var step = chain.steps[tstate.stepIdx];
+    if (!step) return;
+
+    var tokens = WM.text.tokenize(step.en);
+    var tok = tokens[tstate.tokIdx];
+    if (!tok) return;
+
+    var typed = tstate.typed.trim();
+    if (!typed) { WM.audio.tick(true); return; }   /* 還沒打東西就按空白：提示音，不動作 */
+
+    if (WM.text.matches(typed, tok.word)) {
+      /* --- 答對 --- */
+      tstate.typed = '';
+      tstate.wrong = false;
+      tstate.tokIdx++;
+
+      if (tstate.tokIdx >= tokens.length) {
+        finishStep();
+      } else {
+        WM.audio.chime(true);
+        WM.speech.speak(tok.word);          /* 空白鍵 = 唸出這個單字 */
+        render();
+        focusTyper();
+      }
+    } else {
+      /* --- 打錯：標紅並鎖住，使用者必須刪掉重打 --- */
+      tstate.wrong = true;
+      tstate.missCount++;
+      WM.audio.chime(false);
+      render();
+      var el = $('#typer');
+      if (el) { try { el.focus(); el.select(); } catch (e) { /* 忽略 */ } }
     }
   }
 
-  function gradeCard(quality) {
-    var s = session.study;
-    if (s.done || s.idx >= s.queue.length) return;
+  function finishStep() {
+    var pack = packById(tstate.packId);
+    var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
+    if (!pack || !chain) return;
 
-    var row = s.queue[s.idx];
-    WM.srs.grade(row.rec, quality);
+    tstate.finished = true;
+    var wasMistake = tstate.missCount > 0;
+    WM.packs.completeStep(pack.id, chain.id, tstate.stepIdx, wasMistake);
 
-    /* 寫入今日紀錄 */
-    var t = WM.store.today();
-    t.reviewed += 1;
-    if (quality >= 2) { t.right += 1; s.correct += 1; }
-    WM.store.save();
-
-    WM.speech.stop();
-    s.idx += 1;
-    s.flipped = false;
-
-    if (s.idx >= s.queue.length) {
-      s.done = true;
+    /* 整串輸入完畢 → 再把這一串完整念一次 */
+    var step = chain.steps[tstate.stepIdx];
+    WM.audio.chime(true);
+    if (step) {
+      WM.speech.speak(step.en, {
+        onend: function () { renderNextActions(); }
+      });
     }
     render();
+    renderNextActions();
+  }
+
+  function goNextStep() {
+    var pack = packById(tstate.packId);
+    var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
+    if (!pack || !chain) return;
+    if (tstate.stepIdx + 1 >= chain.steps.length) return;
+    tstate.stepIdx++;
+    tstate.tokIdx = 0;
+    tstate.typed = '';
+    tstate.wrong = false;
+    tstate.finished = false;
+    render();
+    focusTyper();
+    if (WM.store.get('autoPlay')) {
+      var s = chain.steps[tstate.stepIdx];
+      if (s) setTimeout(function () { WM.speech.speak(s.en); }, 250);
+    }
+  }
+
+  function goNextChain() {
+    var pack = packById(tstate.packId);
+    var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
+    if (!pack || !chain) return;
+    var i = WM.packs.chainIndex(pack.id, chain.id);
+    var next = pack.chains[i + 1];
+    if (!next) { location.hash = '#/learn/' + pack.id; render(); return; }
+    initPractice(pack, next);
+    location.hash = '#/learn/' + pack.id + '/' + next.id;
+    render();
+    focusTyper();
+  }
+
+  function retryStep() {
+    var pack = packById(tstate.packId);
+    var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
+    if (!pack || !chain) return;
+    tstate.tokIdx = 0;
+    tstate.typed = '';
+    tstate.wrong = false;
+    tstate.finished = false;
+    tstate.missCount = 0;
+    render();
+    focusTyper();
+  }
+
+  function viewLearn() {
+    var parts = routeParts();
+    var pack = parts[1] ? packById(parts[1]) : null;
+    if (!pack) return learnPackPicker();
+
+    var chain = parts[2] ? WM.packs.getChain(pack.id, parts[2]) : null;
+    if (!chain) return learnChainList(pack);
+
+    /* 換到別的鏈就重新初始化 */
+    if (tstate.packId !== pack.id || tstate.chainId !== chain.id) initPractice(pack, chain);
+    if (tstate.stepIdx >= chain.steps.length) tstate.stepIdx = chain.steps.length - 1;
+
+    return learnPractice(pack, chain);
   }
 
   /* ============================================================
-     4. 測驗
+     4. 字庫管理
      ============================================================ */
-  var MODES = {
-    en2zh:  { icon: '🔤', name: '英翻中選擇題', desc: '看英文單字與例句，從四個中文意思裡選一個。' },
-    zh2en:  { icon: '🅰️', name: '中翻英選擇題', desc: '看中文意思，從四個英文單字裡選一個。' },
-    listen: { icon: '🎧', name: '聽力測驗',       desc: '只聽發音就能選出正確的英文單字。' },
-    spell:  { icon: '⌨️', name: '聽寫拼字',       desc: '看中文與例句，直接把英文單字打出來。' }
-  };
-
-  function viewQuiz() {
-    var q = session.quiz;
-
-    /* 深層連結：
-         #/quiz/listen        → 預選「聽力測驗」模式
-         #/quiz/listen/daily  → 直接用「日常生活」字庫開始測驗
-         #/quiz/listen/all    → 直接用全部字庫開始測驗 */
-    var parts = routeParts();
-    var want = parts[1] || '';
-    var wantPack = parts[2] || '';
-
-    if (MODES[want]) {
-      if (q.mode !== want) { q.mode = want; q.started = false; }
-      if (wantPack && !q.started) {
-        buildQuiz(want, wantPack, q.total);
-        return quizQuestion();
-      }
-    }
-
-    if (!q.mode) return quizSetup();
-    if (q.done) return quizResult();
-    return quizQuestion();
-  }
-
-  function quizSetup() {
-    var modeHTML = Object.keys(MODES).map(function (k) {
-      var m = MODES[k];
-      var on = session.quiz.mode === k ? ' is-active' : '';
-      return '<button class="mode' + on + '" data-mode="' + k + '">' +
-        '<div class="mode__ico">' + m.icon + '</div>' +
-        '<div class="mode__name">' + m.name + '</div>' +
-        '<div class="mode__desc">' + m.desc + '</div></button>';
+  function viewPacks() {
+    var packs = WM.packs.all();
+    var cards = packs.map(function (p, i) {
+      var s = WM.stats.packProgress(p);
+      return '<div class="packcard">' +
+        '<div class="packcard__top">' +
+          '<div class="packcard__ico">' + p.icon + '</div>' +
+          '<div class="packcard__info">' +
+            '<div class="packcard__name">' + esc(p.name) +
+              ' <span class="pill">' + esc(p.level) + '</span>' +
+              (p.custom ? ' <span class="pill pill--brand">自訂</span>' : '') + '</div>' +
+            '<div class="packcard__meta">' + s.total + ' 條漸進鏈 · ' + s.stepsAll + ' 個步驟 · 已完成 ' + s.done + ' 條</div>' +
+            (p.desc ? '<div class="packcard__desc">' + esc(p.desc) + '</div>' : '') +
+          '</div>' +
+          '<div class="packcard__pct">' + s.stepPct + '%</div>' +
+        '</div>' +
+        '<div class="bar" style="margin:10px 0"><div class="bar__fill" style="width:' + s.stepPct + '%"></div></div>' +
+        '<div class="packcard__acts">' +
+          '<a class="btn btn--sm btn--primary" href="#/learn/' + p.id + '">開始學</a>' +
+          '<button class="btn btn--sm" data-edit-pack="' + p.id + '">✎ 編輯內容</button>' +
+          '<button class="btn btn--sm" data-move-pack="' + p.id + '" data-dir="-1"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+          '<button class="btn btn--sm" data-move-pack="' + p.id + '" data-dir="1"' + (i === packs.length - 1 ? ' disabled' : '') + '>↓</button>' +
+          '<span style="flex:1"></span>' +
+          '<button class="btn btn--sm btn--danger" data-del-pack="' + p.id + '">🗑 刪除</button>' +
+        '</div>' +
+      '</div>';
     }).join('');
 
-    return '<section class="card card--pad-lg quiz__setup">' +
-      '<div class="card__head"><div>' +
-        '<h2 class="card__title">選擇測驗模式</h2>' +
-        '<p class="card__sub">答對的單字會自動升級，不熟的會回到最前面再練</p>' +
-      '</div></div>' +
-      '<div class="quiz__modes">' + modeHTML + '</div>' +
-      '<div class="grid grid--2">' +
-        '<div class="field"><label for="qPack">字庫</label>' +
-          '<select class="input" id="qPack">' +
-            '<option value="all">全部字庫</option>' +
-            packs.map(function (p) { return '<option value="' + p.id + '">' + p.icon + ' ' + esc(p.name) + '</option>'; }).join('') +
-          '</select></div>' +
-        '<div class="field"><label for="qCount">題數</label>' +
-          '<select class="input" id="qCount">' +
-            [5, 10, 15, 20, 30].map(function (n) { return '<option value="' + n + '"' + (n === 10 ? ' selected' : '') + '>' + n + ' 題</option>'; }).join('') +
-          '</select></div>' +
-      '</div>' +
-      '<button class="btn btn--primary btn--lg btn--block" id="qStart">開始測驗 ▸</button>' +
-    '</section>';
+    return '' +
+    '<div class="study__bar">' +
+      '<h2 style="margin:0">字庫管理</h2>' +
+      '<div class="study__count">共 ' + packs.length + ' 個</div>' +
+    '</div>' +
+    '<div class="btn-row" style="margin-bottom:16px">' +
+      '<button class="btn btn--primary" data-new-pack>＋ 新增字庫</button>' +
+      '<button class="btn btn--ghost" data-open-export>匯出成 data.js</button>' +
+      '<button class="btn btn--ghost" data-restore>還原內建字庫</button>' +
+    '</div>' +
+    (packs.length
+      ? '<div class="stack" style="gap:12px">' + cards + '</div>'
+      : '<div class="card empty"><div class="empty__ico">📦</div><h2>還沒有字庫</h2>' +
+        '<p>按「新增字庫」建立第一個，或按「還原內建字庫」取回預設內容。</p></div>');
   }
 
-  function buildQuiz(mode, packId, count) {
-    var pool = packId === 'all'
-      ? allWords
-      : allWords.filter(function (x) { return x.pack.id === packId; });
+  /* ---------- 字庫編輯視窗 ---------- */
+  var editPackId = null;
+  var pickedIcon = null;
 
-    /* 優先出題：到期 / 沒學過的排在最前面（WM.srs.queue 已經排好序） */
-    var picked = WM.srs.queue(pool, function (x) { return x.id; }, recOf).slice(0, count);
+  function openPackEditor(packId) {
+    editPackId = packId || null;
+    var p = editPackId ? WM.packs.get(editPackId) : null;
+    pickedIcon = p ? p.icon : '📦';
+    renderPackEditor();
+    $('#packModal').hidden = false;
+  }
 
-    /* 選的字庫太小時，從其他字庫隨機補到指定題數 */
-    var guard = 0;
-    var have = {};
-    picked.forEach(function (r) { have[r.item.id] = true; });
-    while (picked.length < count && guard < count * 12) {
-      guard++;
-      var extra = WM.util.sample(allWords, 1)[0];
-      if (!extra || have[extra.id]) continue;
-      have[extra.id] = true;
-      picked.push({ item: extra, id: extra.id, rec: recOf(extra.id), due: true, isNew: false, staleDays: 0 });
+  function renderPackEditor() {
+    var body = $('#packModalBody');
+    var p = editPackId ? packById(editPackId) : null;
+    $('#packModalTitle').textContent = p ? '編輯字庫' : '新增字庫';
+
+    if (!p) {
+      body.innerHTML =
+        '<div class="grid grid--2">' +
+          '<div class="field"><label>字庫名稱</label>' +
+            '<input class="input" id="npName" placeholder="例如：自定義1" value="自定義1"></div>' +
+          '<div class="field"><label>等級</label><select class="input" id="npLevel">' +
+            LEVELS.map(function (l) { return '<option' + (l === 'A1' ? ' selected' : '') + '>' + l + '</option>'; }).join('') +
+          '</select></div>' +
+        '</div>' +
+        '<div class="field"><label>說明</label>' +
+          '<input class="input" id="npDesc" placeholder="選填"></div>' +
+        '<div class="field"><label>圖示</label>' +
+          '<div class="iconpick" id="npIcons">' +
+            ICONS.map(function (i) {
+              return '<button class="iconpick__b" data-icon="' + i + '">' + i + '</button>';
+            }).join('') +
+          '</div></div>' +
+        '<p class="hint">建立之後就可以在這裡加入「漸進鏈」：單字 → 詞組 → 句子 → 段落。</p>';
+      bindNewPackForm();
+      return;
     }
 
-    var items = picked.map(function (r) {
-      var x = r.item;                 // { pack, word, id }
-      var w = x.word;
+    var chainsHTML = p.chains.map(function (c, ci) {
+      var stepsHTML = c.steps.map(function (s, si) {
+        return '<div class="stepedit" data-chain="' + c.id + '" data-si="' + si + '">' +
+          '<div class="stepedit__no">' + (si + 1) + '</div>' +
+          '<div class="stepedit__fields">' +
+            '<input class="input" data-f="en" placeholder="英文" value="' + esc(s.en) + '">' +
+            '<input class="input" data-f="zh" placeholder="中文" value="' + esc(s.zh) + '">' +
+            '<input class="input" data-f="ipa" placeholder="音標（可留空）" value="' + esc(s.ipa) + '">' +
+          '</div>' +
+          '<div class="stepedit__acts">' +
+            '<button class="icon-btn" data-step-up title="上移" data-chain="' + c.id + '" data-si="' + si + '">↑</button>' +
+            '<button class="icon-btn" data-step-down title="下移" data-chain="' + c.id + '" data-si="' + si + '">↓</button>' +
+            '<button class="icon-btn" data-step-del title="刪除" data-chain="' + c.id + '" data-si="' + si + '">✕</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
 
-      /* 干擾項優先取自同一個字庫，不夠再從全部字庫補 */
-      var dist = WM.util.sample(pool.filter(function (o) { return o.word.w !== w.w; }), 3);
-      var g2 = 0;
-      while (dist.length < 3 && g2 < 40) {
-        g2++;
-        var d = WM.util.sample(allWords, 1)[0];
-        if (d && d.word.w !== w.w && !dist.some(function (o) { return o.word.w === d.word.w; })) dist.push(d);
-      }
+      return '<details class="chainedit"' + (ci === 0 ? ' open' : '') + '>' +
+        '<summary class="chainedit__head">' +
+          '<span>第 ' + (ci + 1) + ' 條</span>' +
+          '<span class="chainedit__preview">' + esc(c.steps[0] ? c.steps[0].zh : '空白') + '</span>' +
+          '<span class="chainedit__acts">' +
+            '<button class="icon-btn" data-chain-up data-chain="' + c.id + '">↑</button>' +
+            '<button class="icon-btn" data-chain-down data-chain="' + c.id + '">↓</button>' +
+            '<button class="icon-btn" data-chain-del data-chain="' + c.id + '">🗑</button>' +
+          '</span>' +
+        '</summary>' +
+        '<div class="chainedit__body">' + stepsHTML +
+          '<button class="btn btn--sm btn--ghost" data-step-add data-chain="' + c.id + '">＋ 新增步驟</button>' +
+        '</div>' +
+      '</details>';
+    }).join('');
 
-      return {
-        entry: x, id: x.id, word: w,
-        options: WM.util.shuffle(dist.slice(0, 3).map(function (o) { return o.word; }).concat([w]))
-      };
+    body.innerHTML =
+      '<div class="grid grid--2">' +
+        '<div class="field"><label>字庫名稱</label>' +
+          '<input class="input" id="npName" value="' + esc(p.name) + '"></div>' +
+        '<div class="field"><label>等級</label><select class="input" id="npLevel">' +
+          LEVELS.map(function (l) { return '<option' + (l === p.level ? ' selected' : '') + '>' + l + '</option>'; }).join('') +
+        '</select></div>' +
+      '</div>' +
+      '<div class="field"><label>說明</label>' +
+        '<input class="input" id="npDesc" value="' + esc(p.desc) + '"></div>' +
+      '<div class="field"><label>圖示</label>' +
+        '<div class="iconpick" id="npIcons" data-cur="' + p.icon + '">' +
+          ICONS.concat([p.icon]).filter(function (v, i, a) { return a.indexOf(v) === i; })
+            .map(function (i) {
+              return '<button class="iconpick__b' + (i === p.icon ? ' is-on' : '') + '" data-icon="' + i + '">' + i + '</button>';
+            }).join('') +
+        '</div></div>' +
+
+      '<div class="chainedit__list">' +
+        '<div class="card__head" style="margin-top:8px"><h3 class="card__title">漸進鏈內容</h3>' +
+        '<button class="btn btn--sm btn--primary" data-chain-add>＋ 新增一條</button></div>' +
+        (p.chains.length ? chainsHTML : '<p class="hint">還沒有內容，按「新增一條」開始。</p>') +
+      '</div>' +
+      '<p class="hint" style="margin-top:10px">欄位會在您停止輸入 0.4 秒後自動儲存。</p>';
+
+    bindEditPackForm();
+  }
+
+  /* 字庫編輯視窗的事件綁定。
+     ⚠ 這些監聽器只能綁一次（啟動時呼叫），不能放進 renderPackEditor，
+       否則每次重畫都會多綁一份，點一下按鈕就會觸發兩次。 */
+  function bindPackModalOnce() {
+    var body = $('#packModalBody');
+
+    body.addEventListener('input', function (e) {
+      var f = e.target.closest('[data-f]');
+      if (!f || !editPackId) return;
+      var row = f.closest('[data-chain]');
+      if (!row) return;
+      var patch = {};
+      patch[f.getAttribute('data-f')] = f.value;
+      WM.packs.updateStep(editPackId, row.getAttribute('data-chain'), +row.getAttribute('data-si'), patch);
     });
 
-    session.quiz = {
-      mode: mode, packId: packId, total: items.length,
-      items: items, idx: 0, answered: false, results: [], done: false, started: true
+    body.addEventListener('click', function (e) {
+      var t = e.target, btn;
+
+      if ((btn = t.closest('[data-icon]'))) {
+        pickedIcon = btn.getAttribute('data-icon');
+        body.querySelectorAll('.iconpick__b').forEach(function (x) { x.classList.remove('is-on'); });
+        btn.classList.add('is-on');
+        savePackMeta();
+        return;
+      }
+      if (!editPackId) return;
+
+      if (t.closest('[data-chain-add]')) { WM.packs.addChain(editPackId); renderPackEditor(); render(); return; }
+      if ((btn = t.closest('[data-chain-del]'))) {
+        if (!confirm('確定刪除這條漸進鏈？裡面的步驟會一起消失。')) return;
+        WM.packs.removeChain(editPackId, btn.getAttribute('data-chain')); renderPackEditor(); render(); return;
+      }
+      if ((btn = t.closest('[data-chain-up]'))) {
+        WM.packs.moveChain(editPackId, btn.getAttribute('data-chain'), -1); renderPackEditor(); render(); return;
+      }
+      if ((btn = t.closest('[data-chain-down]'))) {
+        WM.packs.moveChain(editPackId, btn.getAttribute('data-chain'), 1); renderPackEditor(); render(); return;
+      }
+      if ((btn = t.closest('[data-step-add]'))) {
+        WM.packs.addStep(editPackId, btn.getAttribute('data-chain')); renderPackEditor(); render(); return;
+      }
+      if ((btn = t.closest('[data-step-del]'))) {
+        WM.packs.removeStep(editPackId, btn.getAttribute('data-chain'), +btn.getAttribute('data-si'));
+        renderPackEditor(); render(); return;
+      }
+      if ((btn = t.closest('[data-step-up]'))) {
+        WM.packs.moveStep(editPackId, btn.getAttribute('data-chain'), +btn.getAttribute('data-si'), -1);
+        renderPackEditor(); render(); return;
+      }
+      if ((btn = t.closest('[data-step-down]'))) {
+        WM.packs.moveStep(editPackId, btn.getAttribute('data-chain'), +btn.getAttribute('data-si'), 1);
+        renderPackEditor(); render(); return;
+      }
+    });
+  }
+
+  function savePackMeta() {
+    if (!editPackId) return;
+    WM.packs.update(editPackId, {
+      name: ($('#npName').value || '').trim(),
+      icon: pickedIcon,
+      level: $('#npLevel').value,
+      desc: $('#npDesc').value || ''
+    });
+    render();
+  }
+
+  function bindNewPackForm() {
+    $('#packModalDone').onclick = function () {
+      var name = ($('#npName').value || '').trim() || '新字庫';
+      var pack = WM.packs.create({
+        name: name,
+        icon: pickedIcon || '📦',
+        level: $('#npLevel').value,
+        desc: ($('#npDesc').value || '').trim()
+      });
+      editPackId = pack.id;
+      pickedIcon = pack.icon;
+      toast('已建立「' + pack.name + '」，接著加入內容吧', 'ok');
+      renderPackEditor();
+      render();
     };
   }
 
-  function quizQuestion() {
-    var q = session.quiz;
-    var it = q.items[q.idx];
-    var w = it.word;
-    var pct = Math.round((q.idx / q.total) * 100);
+  function bindEditPackForm() {
+    var save = WM.util.debounce(function () { savePackMeta(); }, 400);
+    ['#npName', '#npLevel', '#npDesc'].forEach(function (sel) {
+      var el = $(sel);
+      if (el) el.addEventListener('input', save);
+    });
 
-    var stem = '', body = '';
-
-    if (q.mode === 'en2zh') {
-      stem = '<div class="quiz__q">這個單字是什麼意思？</div>' +
-        '<div class="quiz__main">' + esc(w.w) + '</div>' +
-        '<div class="quiz__prompt">' + esc(w.ipa) + ' · ' + esc(w.en) + '</div>';
-      body = '<div class="opts">' + it.options.map(function (o) {
-        return '<button class="opt" data-answer="' + esc(o.zh) + '">' + esc(o.zh) + '</button>';
-      }).join('') + '</div>';
-    } else if (q.mode === 'zh2en') {
-      stem = '<div class="quiz__q">這個意思是哪個英文？</div>' +
-        '<div class="quiz__main">' + esc(w.zh) + '</div>' +
-        '<div class="quiz__prompt">' + esc(w.pos) + '</div>';
-      body = '<div class="opts">' + it.options.map(function (o) {
-        return '<button class="opt" data-answer="' + esc(o.w) + '">' + esc(o.w) + '</button>';
-      }).join('') + '</div>';
-    } else if (q.mode === 'listen') {
-      stem = '<div class="quiz__q">聽聽看，這是哪個單字？</div>' +
-        '<div style="margin:18px 0"><button class="speak-btn" data-speak="' + esc(w.w) + '" aria-label="播放發音" style="width:78px;height:78px;font-size:1.9rem">🔊</button></div>' +
-        '<div class="quiz__prompt">點上面的喇叭可以重播</div>';
-      body = '<div class="opts">' + it.options.map(function (o) {
-        return '<button class="opt" data-answer="' + esc(o.w) + '">' + esc(o.w) + '</button>';
-      }).join('') + '</div>';
-    } else {
-      /* spell 聽寫 */
-      stem = '<div class="quiz__q">請拼出這個英文單字</div>' +
-        '<div class="quiz__main">' + esc(w.zh) + '</div>' +
-        '<div class="quiz__prompt">' + esc(w.en).replace(new RegExp('\\b' + w.w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), '＿＿＿＿') + '</div>';
-      body = '<div class="typed"><div class="typed__row">' +
-        '<input class="input" id="spellInput" type="text" autocomplete="off" autocapitalize="off" ' +
-          'autocorrect="off" spellcheck="false" placeholder="輸入英文單字…">' +
-        '<button class="btn btn--primary" data-spell-submit>送出</button>' +
-        '</div></div>';
-    }
-
-    return '' +
-    '<div class="quiz__progress">' +
-      '<button class="btn btn--ghost btn--sm" data-quiz-exit>← 離開</button>' +
-      '<div class="bar"><div class="bar__fill" style="width:' + pct + '%"></div></div>' +
-      '<div class="study__count" style="margin:0">' + (q.idx + 1) + ' / ' + q.total + '</div>' +
-    '</div>' +
-
-    '<section class="card card--pad-lg">' +
-      '<div class="quiz__stem">' + stem + '</div>' +
-      body +
-      '<div id="quizFeedback"></div>' +
-    '</section>' +
-
-    (q.mode === 'listen' ? '<p style="text-align:center;color:var(--text-3);font-size:.82rem;margin-top:16px">' +
-      '快捷鍵：<span class="kbd">空白</span> 重播發音 · <span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span><span class="kbd">4</span> 選答案</p>' : '');
+    $('#packModalDone').onclick = function () {
+      savePackMeta();
+      closeModal();
+      render();
+      toast('已儲存', 'ok');
+    };
   }
 
-  function submitAnswer(given) {
-    var q = session.quiz;
-    if (q.answered) return;
-
-    var it = q.items[q.idx];
-    var w = it.word;
-    var expected = (q.mode === 'en2zh') ? w.zh : w.w;
-    var isRight = q.mode === 'spell'
-      ? String(given).trim().toLowerCase() === w.w.toLowerCase()
-      : given === expected;
-
-    q.answered = true;
-    q.lastAnswer = isRight;
-
-    /* 選擇題：把對錯直接標在選項上 */
-    if (q.mode !== 'spell') {
-      var btns = document.querySelectorAll('.opt');
-      for (var i = 0; i < btns.length; i++) {
-        var b = btns[i];
-        b.disabled = true;
-        if (b.getAttribute('data-answer') === expected) b.classList.add('is-right');
-        else if (b.getAttribute('data-answer') === given) b.classList.add('is-wrong');
-      }
-    } else {
-      var input = $('#spellInput');
-      if (input) {
-        input.disabled = true;
-        input.classList.add(isRight ? 'is-right' : 'is-wrong');
-      }
-    }
-
-    /* 更新間隔重複進度 */
-    WM.srs.grade(recOf(it.id), isRight ? 3 : 0);
-    var t = WM.store.today();
-    t.reviewed += 1;
-    if (isRight) t.right += 1;
-    q.results.push({ word: w, zh: w.zh, right: isRight, given: given });
-    var st = WM.store.state.quiz;
-    st.total += 1;
-    if (isRight) st.right += 1;
-    if (st.total > 0) {
-      var rate = st.right / st.total;
-      st.streak = rate >= 0.7 ? st.streak + 1 : 0;
-      if (st.streak > st.best) st.best = st.streak;
-    }
-    WM.store.save();
-
-    /* 顯示回饋 */
-    var fb = $('#quizFeedback');
-    if (fb) {
-      fb.innerHTML =
-        '<div class="feedback feedback--' + (isRight ? 'ok' : 'bad') + '">' +
-          '<div class="feedback__head">' + (isRight ? '✓ 答對了！' : '✗ 再記一次') + '</div>' +
-          '<div class="feedback__en"><strong>' + esc(w.w) + '</strong> ' + esc(w.ipa) + ' · ' + esc(w.pos) + ' — ' + esc(w.zh) + '</div>' +
-          '<div class="feedback__zh">' + esc(w.en) + '<br>' + esc(w.zhEn) + '</div>' +
-        '</div>' +
-        '<div class="btn-row" style="justify-content:center;margin-top:16px">' +
-          '<button class="speak-btn" data-speak="' + esc(w.w) + '" aria-label="播放發音" style="width:46px;height:46px;font-size:1.1rem">🔊</button>' +
-          '<button class="btn btn--primary" data-next-question>' +
-            (q.idx + 1 >= q.total ? '看結果 ▸' : '下一題 ▸') +
-          '</button>' +
-        '</div>';
-      if (WM.store.get('autoPlay')) setTimeout(function () { speak(w.w); }, 200);
-    }
+  function closeModal() {
+    $('#packModal').hidden = true;
+    $('#exportModal').hidden = true;
+    editPackId = null;
   }
 
-  function nextQuestion() {
-    var q = session.quiz;
-    if (!q.answered) return;
-    q.idx += 1;
-    q.answered = false;
-    if (q.idx >= q.items.length) q.done = true;
-    render();
-    if (q.mode === 'listen') setTimeout(function () { speak(q.items[q.idx].word.w); }, 250);
+  /* ---------- 匯出 ---------- */
+  function openExport() {
+    var sel = $('#exportScope');
+    sel.innerHTML = '<option value="all">全部字庫</option>' + WM.packs.all().map(function (p) {
+      return '<option value="' + p.id + '">只匯出：' + esc(p.name) + '</option>';
+    }).join('');
+    sel.onchange = refreshExport;
+    refreshExport();
+    $('#exportModal').hidden = false;
   }
 
-  function quizResult() {
-    var q = session.quiz;
-    var right = q.results.filter(function (r) { return r.right; }).length;
-    var total = q.results.length;
-    var rate = total ? Math.round((right / total) * 100) : 0;
-
-    var wrong = q.results.filter(function (r) { return !r.right; });
-    var reviewHTML = wrong.length
-      ? '<div class="review-list">' + wrong.map(function (r) {
-          return '<div class="review-item">' +
-            '<span>' + (r.given ? '❌' : '⏳') + '</span>' +
-            '<span class="review-item__w">' + esc(r.word.w) + '</span>' +
-            '<span class="review-item__zh">' + esc(r.word.zh) + '</span>' +
-            '<span class="review-item__mark">' + (r.given ? '你選了「' + esc(r.given) + '」' : '沒作答') + '</span>' +
-          '</div>';
-        }).join('') + '</div>'
-      : '<p style="color:var(--ok);text-align:center">全部答對，沒有錯題！</p>';
-
-    var msg = rate === 100 ? '滿分！太厲害了 🎉' : rate >= 80 ? '表現很好！' : rate >= 50 ? '還可以，再練會更穩。' : '這些單字要多看幾次。';
-
-    return '<section class="card card--pad-lg quiz__done">' +
-      '<div style="font-size:3rem">' + (rate >= 80 ? '🎉' : rate >= 50 ? '💪' : '📚') + '</div>' +
-      '<h2>測驗完成</h2>' +
-      '<div class="quiz__score">' + rate + '<small>% 正確率</small></div>' +
-      '<p style="color:var(--text-2)">' + msg + '（答對 ' + right + ' / ' + total + ' 題）</p>' +
-      (wrong.length ? '<h3 style="margin-top:26px">需要加強的單字</h3>' + reviewHTML : '') +
-      '<div class="btn-row" style="justify-content:center;margin-top:24px">' +
-        '<button class="btn btn--primary" data-quiz-again>再測一次</button>' +
-        '<a class="btn btn--ghost" href="#/study">回去背單字</a>' +
-        '<a class="btn btn--ghost" href="#/">回到儀表板</a>' +
-      '</div></section>';
+  function refreshExport() {
+    var v = $('#exportScope').value;
+    $('#exportText').value = WM.packs.toJS(v === 'all' ? null : [v]);
   }
 
   /* ============================================================
-     5. 統計
+     5. 統計頁
      ============================================================ */
   function viewStats() {
-    var ov = WM.stats.overview(packs);
+    var ov = WM.stats.overview();
     var recent = WM.stats.recent(14);
-    var max = Math.max.apply(null, recent.map(function (r) { return r.reviewed; }).concat([1]));
+    var max = Math.max.apply(null, recent.map(function (r) { return r.steps; }).concat([1]));
 
     var barsHTML = recent.map(function (r) {
-      var h = Math.round((r.reviewed / max) * 100);
+      var h = Math.round((r.steps / max) * 100);
       var d = r.key.split('-');
-      return '<div class="chart__col" title="' + r.key + '：' + r.reviewed + ' 張">' +
-        '<div class="chart__bar' + (r.reviewed ? '' : ' chart__bar--empty') + '" style="height:' + Math.max(3, h) + '%"></div>' +
+      return '<div class="chart__col" title="' + r.key + '：' + r.steps + ' 個步驟">' +
+        '<div class="chart__bar' + (r.steps ? '' : ' chart__bar--empty') + '" style="height:' + Math.max(3, h) + '%"></div>' +
         '<div class="chart__lab">' + (+d[1]) + '/' + (+d[2]) + '</div></div>';
     }).join('');
 
-    /* heatmap：最近 91 天，湊成 13 週 × 7 天（由週日開始） */
     var heat = WM.stats.heatmap();
     var cells = '';
     var start = new Date();
     start.setDate(start.getDate() - 90);
-    start.setDate(start.getDate() - start.getDay());   // 往前回推到最近的週日
+    start.setDate(start.getDate() - start.getDay());
     for (var i = 0; i < 91; i++) {
       var t = new Date(start); t.setDate(start.getDate() + i);
       var k = WM.util.dateKey(t.getTime());
       var c = heat[k] || 0;
-      var lv = c === 0 ? 0 : c < 10 ? 1 : c < 25 ? 2 : c < 50 ? 3 : 4;
-      cells += '<div class="heat__cell" data-lv="' + lv + '" title="' + k + '：' + c + ' 張"></div>';
+      var lv = c === 0 ? 0 : c < 5 ? 1 : c < 15 ? 2 : c < 30 ? 3 : 4;
+      cells += '<div class="heat__cell" data-lv="' + lv + '" title="' + k + '：' + c + ' 個步驟"></div>';
     }
 
-    var masteryHTML = packs.map(function (p) {
+    var masteryHTML = WM.packs.all().map(function (p) {
       var s = WM.stats.packProgress(p);
-      var pr = s.total ? Math.round((s.mastered / s.total) * 100) : 0;
       return '<div class="mastery__row">' +
         '<div class="mastery__name">' + p.icon + ' ' + esc(p.name) + '</div>' +
-        '<div class="mastery__num">' + s.mastered + ' / ' + s.total + ' 已掌握</div>' +
-        '<div class="bar"><div class="bar__fill bar__fill--ok" style="width:' + pr + '%"></div></div>' +
+        '<div class="mastery__num">' + s.done + ' / ' + s.total + ' 條</div>' +
+        '<div class="bar"><div class="bar__fill bar__fill--ok" style="width:' + s.stepPct + '%"></div></div>' +
       '</div>';
     }).join('');
 
-    var totalLearnedPct = ov.totalWords ? Math.round((ov.learned / ov.totalWords) * 100) : 0;
+    var overallPct = ov.stepsAll ? Math.round((ov.stepsDone / ov.stepsAll) * 100) : 0;
 
     return '<div class="stack">' +
       '<div class="grid grid--4">' +
         statTile('🔥', ov.streak, '連續天數') +
-        statTile('📖', ov.learned, '學過的單字') +
-        statTile('🏆', ov.mastered, '已掌握') +
-        statTile('⚡', ov.quiz.best, '最高連對') +
+        statTile('📖', ov.done, '完成條數') +
+        statTile('✎', ov.stepsDone, '完成步驟') +
+        statTile('📦', ov.packs, '字庫數') +
       '</div>' +
 
       '<section class="card">' +
-        '<div class="card__head"><h2 class="card__title">近 14 天複習量</h2>' +
-        '<span class="card__sub">今天 ' + ov.today.done + ' 張</span></div>' +
+        '<div class="card__head"><h2 class="card__title">近 14 天練習量</h2>' +
+        '<span class="card__sub">今天 ' + ov.today.done + ' 個步驟</span></div>' +
         '<div class="chart">' + barsHTML + '</div>' +
       '</section>' +
 
@@ -681,26 +801,17 @@
         '<div class="card__head"><h2 class="card__title">學習日曆</h2>' +
         '<span class="card__sub">最近 13 週</span></div>' +
         '<div class="heat">' + cells + '</div>' +
-        '<p style="color:var(--text-3);font-size:.8rem;margin:10px 0 0">顏色越深代表當天複習越多張單字卡</p>' +
+        '<p style="color:var(--text-3);font-size:.8rem;margin:10px 0 0">顏色越深代表當天完成的步驟越多</p>' +
       '</section>' +
 
       '<section class="card">' +
-        '<div class="card__head"><h2 class="card__title">各字庫掌握度</h2></div>' +
+        '<div class="card__head"><h2 class="card__title">各字庫進度</h2></div>' +
         '<div class="mastery">' + masteryHTML + '</div>' +
         '<div style="margin-top:20px">' +
           '<div style="display:flex;justify-content:space-between;font-size:.86rem;margin-bottom:6px">' +
-            '<span style="color:var(--text-2)">整體進度</span>' +
-            '<span style="font-weight:700">' + totalLearnedPct + '%</span></div>' +
-          '<div class="bar"><div class="bar__fill" style="width:' + totalLearnedPct + '%"></div></div>' +
-        '</div>' +
-      '</section>' +
-
-      '<section class="card">' +
-        '<div class="card__head"><h2 class="card__title">測驗紀錄</h2></div>' +
-        '<div class="grid grid--3">' +
-          statTile('✎', ov.quiz.total, '累積題數') +
-          statTile('✅', ov.quiz.total ? WM.util.pct(ov.quiz.right, ov.quiz.total) : '—', '總正確率') +
-          statTile('🔥', ov.quiz.streak, '目前連對') +
+            '<span style="color:var(--text-2)">整體步驟完成度</span>' +
+            '<span style="font-weight:700">' + overallPct + '%</span></div>' +
+          '<div class="bar"><div class="bar__fill" style="width:' + overallPct + '%"></div></div>' +
         '</div>' +
       '</section>' +
     '</div>';
@@ -709,9 +820,6 @@
   /* ============================================================
      6. 設定
      ============================================================ */
-  function openDrawer() { $('#settingsDrawer').hidden = false; }
-  function closeDrawer() { $('#settingsDrawer').hidden = true; }
-
   function syncSettingsUI() {
     var s = WM.store.state.settings;
     $('#setGoal').value = s.dailyGoal;
@@ -719,20 +827,20 @@
     $('#setSpeechRate').value = s.rate;
     $('#setSpeechRateOut').textContent = Number(s.rate).toFixed(2);
     $('#setAutoPlay').checked = !!s.autoPlay;
-    $('#setZhFirst').checked = !!s.zhFirst;
+    $('#setTypeSound').checked = !!s.typeSound;
     applyTheme(s.theme || 'dark');
 
     var sel = $('#setVoice');
-    var en = WM.speech.list();
     var hint = $('#voiceHint');
     if (!WM.speech.supported) {
-      hint.textContent = '這個瀏覽器不支援語音發音功能，建議改用 Chrome 或 Edge。';
+      hint.textContent = '這個瀏覽器不支援語音發音，建議改用 Chrome 或 Edge。';
       sel.innerHTML = '<option>不支援</option>';
       sel.disabled = true;
       return;
     }
+    var en = WM.speech.list();
     if (!en.length) {
-      hint.textContent = '正在偵測語音…（若持續空白表示系統尚未安裝英文語音包）';
+      hint.textContent = '正在偵測語音…（持續空白代表系統尚未安裝英文語音包）';
       sel.innerHTML = '<option value="">載入中…</option>';
       return;
     }
@@ -754,25 +862,30 @@
       WM.store.set('rate', +this.value);
     });
     $('#setAutoPlay').addEventListener('change', function () { WM.store.set('autoPlay', this.checked); });
-    $('#setZhFirst').addEventListener('change', function () { WM.store.set('zhFirst', this.checked); });
+    $('#setTypeSound').addEventListener('change', function () {
+      WM.store.set('typeSound', this.checked);
+      WM.audio.setEnabled(this.checked);
+    });
     $('#setVoice').addEventListener('change', function () {
       WM.store.set('voiceURI', this.value);
-      speak('Hello, this is how I sound.');
+      WM.speech.speak('Hello, this is how I sound.');
     });
 
     document.querySelectorAll('[data-close-drawer]').forEach(function (el) {
-      el.addEventListener('click', closeDrawer);
+      el.addEventListener('click', function () { $('#settingsDrawer').hidden = true; });
+    });
+    document.querySelectorAll('[data-close-modal]').forEach(function (el) {
+      el.addEventListener('click', closeModal);
     });
 
-    /* 點頁面空白處開啟設定：鍵盤 "，" 或齒輪 */
     $('#exportBtn').addEventListener('click', function () {
       var blob = new Blob([WM.store.exportJSON()], { type: 'application/json' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'wordmomo-progress-' + WM.util.dateKey() + '.json';
+      a.download = 'wordmomo-backup-' + WM.util.dateKey() + '.json';
       a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-      toast('已匯出進度檔', 'ok');
+      toast('已匯出備份', 'ok');
     });
     $('#importBtn').addEventListener('click', function () { $('#importFile').click(); });
     $('#importFile').addEventListener('change', function () {
@@ -782,22 +895,48 @@
       reader.onload = function () {
         try {
           WM.store.importJSON(String(reader.result));
-          toast('匯入成功！', 'ok');
+          toast('匯入成功', 'ok');
           syncSettingsUI();
           render();
-        } catch (e) {
-          toast('匯入失敗：檔案格式不正確', 'bad');
-        }
+        } catch (e) { toast('匯入失敗：檔案格式不正確', 'bad'); }
       };
       reader.readAsText(f);
       this.value = '';
     });
+    $('#clearProgressBtn').addEventListener('click', function () {
+      if (!confirm('只清除學習紀錄，字庫內容會保留。確定嗎？')) return;
+      WM.store.resetProgress();
+      toast('已清除學習紀錄');
+      render();
+    });
     $('#resetBtn').addEventListener('click', function () {
-      if (confirm('確定要清除全部學習進度嗎？\n這個動作無法復原。')) {
-        WM.store.reset();
-        toast('已清除全部進度');
-        render();
+      if (!confirm('這會刪除所有自訂字庫並還原成內建內容，且清空紀錄。\n確定要重設嗎？')) return;
+      WM.store.resetAll();
+      toast('已重設為內建字庫');
+      syncSettingsUI();
+      render();
+    });
+
+    $('#copyExportBtn').addEventListener('click', function () {
+      var ta = $('#exportText');
+      ta.select();
+      try {
+        document.execCommand('copy');
+        toast('已複製到剪貼簿', 'ok');
+      } catch (e) {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(ta.value).then(function () { toast('已複製', 'ok'); });
+        } else { toast('複製失敗，請手動選取', 'bad'); }
       }
+    });
+    $('#downloadExportBtn').addEventListener('click', function () {
+      var blob = new Blob([$('#exportText').value], { type: 'text/javascript;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'data.js';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      toast('已下載 data.js', 'ok');
     });
   }
 
@@ -806,39 +945,27 @@
      ============================================================ */
   var ROUTES = {
     dashboard: viewDashboard,
-    study:    viewStudy,
-    quiz:     viewQuiz,
-    stats:    viewStats
+    learn:     viewLearn,
+    packs:     viewPacks,
+    stats:     viewStats
   };
 
-  /* 支援兩種深層連結：
-       #/study/tech   → 直接進入「科技網路」字庫的單字卡
-       #/quiz/listen   → 直接預選「聽力測驗」模式
-     hash 格式：#/<頁面>/<參數> */
   function routeParts() {
     var h = (location.hash || '#/').replace(/^#\/?/, '').split('?')[0];
     return h.split('/').filter(function (x) { return x; });
   }
-
   function currentRoute() {
     var p = routeParts();
     return ROUTES[p[0]] ? p[0] : 'dashboard';
-  }
-
-  /* 取得 hash 裡的參數，例如 #/study/tech 的 tech */
-  function routeArg() {
-    return routeParts()[1] || '';
   }
 
   function render() {
     var route = currentRoute();
     var app = $('#app');
 
-    /* 換頁時先關掉抽屜、停掉發音 */
-    closeDrawer();
+    $('#settingsDrawer').hidden = true;
     WM.speech.stop();
 
-    /* 畫面產生失敗時不要整頁卡死，直接把錯誤顯示出來（方便日後改程式時除錯） */
     var html;
     try {
       html = ROUTES[route]();
@@ -847,103 +974,64 @@
       html = '<div class="card empty"><div class="empty__ico">⚠️</div>' +
         '<h2>這頁載入失敗</h2>' +
         '<p style="color:var(--bad);font-family:ui-monospace,monospace">' +
-          esc(err && err.message ? err.message : String(err)) + '</p>' +
-        '<p>多半是 <code>js/data.js</code> 的資料格式不正確，檢查每個單字是不是都有 ' +
-        '<code>w / ipa / pos / zh / en / zhEn</code> 這六個欄位。</p></div>';
+          esc(err && err.message ? err.message : String(err)) + '</p></div>';
     }
     app.innerHTML = html;
 
     document.querySelectorAll('.nav__link, .tabbar__link').forEach(function (a) {
       a.classList.toggle('is-active', a.getAttribute('data-view') === route);
     });
-    window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+    var sn = $('#streakNum');
+    if (sn) sn.textContent = WM.stats.streak();
 
-    /* 進入測驗或單字卡時，自動念出第一張 */
-    if (route === 'study' && session.study.queue.length && !session.study.done) {
-      if (WM.store.get('autoPlay')) {
-        var first = session.study.queue[session.study.idx];
-        if (first) setTimeout(function () { speak(first.item.w); }, 300);
-      }
-    }
-    if (route === 'quiz' && session.quiz.mode === 'listen' && !session.quiz.done && !session.quiz.answered) {
-      setTimeout(function () {
-        var it = session.quiz.items[session.quiz.idx];
-        if (it) speak(it.word.w);
-      }, 350);
-    }
+    if (route !== 'learn') { tstate.packId = null; tstate.chainId = null; }
+    else if (app.querySelector('#typer')) focusTyper();
   }
 
   function onClick(e) {
-    var t = e.target;
-    var el;
+    var t = e.target, el;
 
-    /* 發音按鈕 */
     if ((el = t.closest('[data-speak]'))) {
-      e.stopPropagation();
-      speak(el.getAttribute('data-speak'));
+      WM.speech.speak(el.getAttribute('data-speak'));
       return;
     }
 
-    /* 開始某個字庫 */
-    if ((el = t.closest('[data-start-pack]'))) {
-      startStudy(el.getAttribute('data-start-pack'));
-      return;
-    }
-    if ((el = t.closest('[data-switch-pack]'))) {
-      startStudy(el.getAttribute('data-switch-pack'));
-      return;
-    }
-
-    /* 翻卡 */
-    if ((el = t.closest('#flashCard'))) { flipCard(); return; }
-
-    /* 熟悉度評分 */
-    if ((el = t.closest('[data-grade]'))) {
-      gradeCard(+el.getAttribute('data-grade'));
-      return;
-    }
-    if ((el = t.closest('[data-restart-study]'))) {
-      startStudy(session.study.packId);
+    /* 打字練習的動作 */
+    if ((el = t.closest('[data-act]'))) {
+      var a = el.getAttribute('data-act');
+      if (a === 'next-step') goNextStep();
+      else if (a === 'next-chain') goNextChain();
+      else if (a === 'retry-step') retryStep();
       return;
     }
 
-    /* 測驗 */
-    if ((el = t.closest('[data-mode]'))) {
-      session.quiz.mode = el.getAttribute('data-mode');
-      document.querySelectorAll('.mode').forEach(function (m) {
-        m.classList.toggle('is-active', m === el);
-      });
-      return;
-    }
-    if (t.closest('#qStart')) {
-      var packSel = $('#qPack').value;
-      var cnt = +$('#qCount').value;
-      if (!packs.length) { toast('沒有可用的單字資料', 'bad'); return; }
-      buildQuiz(session.quiz.mode, packSel, cnt);
+    /* 字庫管理 */
+    if (t.closest('[data-new-pack]')) { openPackEditor(null); return; }
+    if ((el = t.closest('[data-edit-pack]'))) { openPackEditor(el.getAttribute('data-edit-pack')); return; }
+    if ((el = t.closest('[data-move-pack]'))) {
+      WM.packs.move(el.getAttribute('data-move-pack'), +el.getAttribute('data-dir'));
       render();
       return;
     }
-    if ((el = t.closest('.opt'))) { submitAnswer(el.getAttribute('data-answer')); return; }
-    if (t.closest('[data-quiz-exit]')) {
-      WM.speech.stop();
-      session.quiz = { mode: null, packId: null, total: 10, items: [], idx: 0, answered: false, results: [], done: false, started: false };
+    if ((el = t.closest('[data-del-pack]'))) {
+      var p = packById(el.getAttribute('data-del-pack'));
+      if (!p) return;
+      if (!confirm('確定要刪除字庫「' + p.name + '」嗎？\n裡面 ' + p.chains.length + ' 條漸進鏈與學習紀錄都會消失。')) return;
+      WM.packs.remove(p.id);
+      toast('已刪除「' + p.name + '」');
       render();
       return;
     }
-    if (t.closest('[data-spell-submit]')) {
-      var inp = $('#spellInput');
-      if (inp) submitAnswer(inp.value);
-      return;
-    }
-    if (t.closest('[data-next-question]')) { nextQuestion(); return; }
-    if (t.closest('[data-quiz-again]')) {
-
-      buildQuiz(session.quiz.mode, session.quiz.packId, session.quiz.total);
+    if (t.closest('[data-open-export]')) { openExport(); return; }
+    if (t.closest('[data-restore]')) {
+      if (!confirm('還原成內建字庫會刪掉所有自訂字庫與紀錄，確定嗎？')) return;
+      WM.packs.restoreBuiltIn();
+      toast('已還原內建字庫', 'ok');
       render();
       return;
     }
 
-    /* 設定抽屜 */
+    /* 設定 */
     if (t.closest('#themeBtn')) {
       var cur = document.documentElement.getAttribute('data-theme');
       var next = cur === 'dark' ? 'light' : 'dark';
@@ -951,83 +1039,118 @@
       WM.store.set('theme', next);
       return;
     }
-    if (t.closest('[data-open-settings]')) { openDrawer(); return; }
+    if (t.closest('[data-open-settings]')) { $('#settingsDrawer').hidden = false; return; }
   }
 
-  function onKey(e) {
-    /* Escape 關閉設定抽屜 */
-    if (e.key === 'Escape' && !$('#settingsDrawer').hidden) { closeDrawer(); return; }
+  function onKeyDown(e) {
+    /* 設定抽屜：Esc 關閉 */
+    if (e.key === 'Escape') {
+      if (!$('#settingsDrawer').hidden) { $('#settingsDrawer').hidden = true; return; }
+      if (!$('#packModal').hidden || !$('#exportModal').hidden) { closeModal(); return; }
+    }
 
-    /* 輸入框內不打斷打字 */
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
-      if (e.key === 'Enter' && e.target.id === 'spellInput') { submitAnswer(e.target.value); }
+    var editing = e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA';
+
+    /* 學習頁：Ctrl+P 發音（會蓋掉瀏覽器列印，先擋下來） */
+    if (currentRoute() === 'learn' && (e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+      e.preventDefault();
+      var pack = packById(tstate.packId);
+      var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
+      var step = chain && chain.steps[tstate.stepIdx];
+      if (step) {
+        var btn = $('.speak-btn');
+        if (btn) btn.classList.add('is-playing');
+        WM.speech.speak(step.en, { onend: function () {
+          var b = $('.speak-btn');
+          if (b) b.classList.remove('is-playing');
+        } });
+        toast('🔊 ' + step.en);
+      }
       return;
     }
 
-    var route = currentRoute();
-
-    if (route === 'study' && !session.study.done) {
-      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flipCard(); return; }
-      if (e.key === 'ArrowRight') { e.preventDefault(); gradeCard(3); return; }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); gradeCard(0); return; }
-    }
-
-    if (route === 'quiz') {
-      var q = session.quiz;
-      if (q.mode === 'listen' && (e.key === ' ' || e.key === 'Enter')) {
+    /* 打字輸入框：空白 / Enter = 送出並比對 */
+    if (e.target.id === 'typer') {
+      if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
-        var cur = q.items[q.idx];
-        if (cur && !q.answered) speak(cur.word.w);
+        commitWord();
         return;
       }
-      if (!q.answered && /^[1-9]$/.test(e.key)) {
-        var opts = document.querySelectorAll('.opt');
-        var idx = +e.key - 1;
-        if (opts[idx]) { e.preventDefault(); submitAnswer(opts[idx].getAttribute('data-answer')); }
-        return;
+      /* 其他按鍵 → 打字音效 + 解除錯誤狀態 */
+      if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') {
+        if (WM.store.get('typeSound')) WM.audio.tick();
       }
-      if ((e.key === 'Enter' || e.key === ' ') && q.answered) { e.preventDefault(); nextQuestion(); }
+      return;
     }
+
+    if (editing) return;
+  }
+
+  function onInput(e) {
+    if (e.target.id !== 'typer') return;
+    tstate.typed = e.target.value;
+
+    /* 打字時即時把字顯示在對應的單字上 */
+    var pack = packById(tstate.packId);
+    var chain = WM.packs.getChain(tstate.packId, tstate.chainId);
+    if (!chain) return;
+    var step = chain.steps[tstate.stepIdx];
+    if (!step) return;
+    var tokens = WM.text.tokenize(step.en);
+    var tok = tokens[tstate.tokIdx];
+    if (!tok) return;
+
+    var span = document.querySelector('.tw[data-tok="' + tstate.tokIdx + '"]');
+    if (!span) return;
+
+    var typedCore = WM.text.core(tstate.typed);
+    var rest = tok.core.slice(typedCore.length);
+    span.innerHTML =
+      (tok.lead ? '<span class="tw__pun">' + esc(tok.lead) + '</span>' : '') +
+      '<span class="tw__ok">' + esc(typedCore) + '</span>' +
+      '<span class="tw__caret"></span>' +
+      '<span class="tw__rest">' + esc(rest) + '</span>' +
+      (tok.tail ? '<span class="tw__pun">' + esc(tok.tail) + '</span>' : '');
+
+    /* 重新輸入正確內容時，把紅色錯誤狀態拿掉 */
+    if (tstate.wrong && WM.text.matches(tstate.typed, tok.word)) tstate.wrong = false;
+    span.classList.remove('is-wrong');
   }
 
   /* ============================================================
      啟動
      ============================================================ */
   function boot() {
-    if (!packs.length) {
-      document.getElementById('app').innerHTML =
-        '<div class="card empty"><div class="empty__ico">📭</div>' +
-        '<h2>還沒有單字資料</h2><p>請確認 <code>js/data.js</code> 存在且內容正確。</p></div>';
+    if (!window.WORDMOMO_DATA || !WM.packs.cloneBuiltIn().length) {
+      $('#app').innerHTML = '<div class="card empty"><div class="empty__ico">📭</div>' +
+        '<h2>還沒有字庫資料</h2><p>請確認 <code>js/data.js</code> 存在且內容正確。</p></div>';
       return;
     }
 
     WM.store.load();
     applyTheme(WM.store.get('theme') || 'dark');
     WM.speech.init();
+    WM.audio.setEnabled(!!WM.store.get('typeSound'));
     bindSettings();
+    bindPackModalOnce();
     syncSettingsUI();
-
-    /* 語音清單通常晚一點才載入，等載好再更新下拉選單 */
     setTimeout(syncSettingsUI, 900);
     setTimeout(syncSettingsUI, 2200);
 
     document.addEventListener('click', onClick);
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('input', onInput);
     window.addEventListener('hashchange', render);
     window.addEventListener('beforeunload', function () { WM.store.save(); });
 
-    /* 先把啟動畫面收掉，再畫內容 —— 就算內容有錯也不會卡在 logo */
     setTimeout(function () {
-      var s = document.getElementById('splash');
-      if (s) s.classList.add('is-hidden');
-    }, 420);
+      var sp = document.getElementById('splash');
+      if (sp) sp.classList.add('is-hidden');
+    }, 380);
 
     render();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();
