@@ -275,6 +275,7 @@
       justify-content: center;
       gap: 10px;
       margin-bottom: 20px;
+      flex-wrap: wrap;
     }
 
     .bottom-bar {
@@ -489,6 +490,297 @@
       opacity: 1;
       transform: translate(-50%, 0);
     }
+
+    /* ================= 「解析這一句」面板 ================= */
+    .explain-btn {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-purple);
+      border: 1px solid var(--accent-purple);
+      color: #ffffff;
+      font-weight: 600;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .explain-btn:hover {
+      background: var(--accent-purple-hover);
+      border-color: var(--accent-purple-hover);
+    }
+
+    .status-banner.complete .explain-btn {
+      display: inline-flex;
+    }
+
+    .explain-scrim {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.6);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+      z-index: 1400;
+    }
+
+    .explain-scrim.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .explain-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(780px, 100vw);
+      height: 100vh;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border-color);
+      box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
+      transform: translateX(100%);
+      transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 1500;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .explain-panel.open {
+      transform: translateX(0);
+    }
+
+    .explain__head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+
+    .explain__head h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .explain__sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+    }
+
+    .explain__close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      padding: 4px 8px;
+      flex-shrink: 0;
+    }
+
+    .explain__body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px 56px;
+    }
+
+    .ex-sentence {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+
+    .ex-sentence__en {
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      font-size: 1.12rem;
+      font-weight: 600;
+      line-height: 1.7;
+      word-break: break-word;
+    }
+
+    .ex-sentence__meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      line-height: 1.7;
+    }
+
+    .ex-sentence__ipa {
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      color: #c084fc;
+    }
+
+    .ex-headline {
+      font-size: 0.9rem;
+      color: #d8b4fe;
+      background: rgba(168, 85, 247, 0.12);
+      border-left: 3px solid var(--accent-purple);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 22px;
+      line-height: 1.7;
+    }
+
+    .ex-section {
+      margin-bottom: 28px;
+    }
+
+    .ex-section__title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .ex-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .ex-table th {
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.76rem;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .ex-table td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(46, 53, 72, 0.6);
+      vertical-align: top;
+      line-height: 1.75;
+    }
+
+    .ex-table td.en {
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      font-size: 0.82rem;
+    }
+
+    .ex-cell--ok { color: #6ee7b7; }
+    .ex-cell--bad { color: #fca5a5; }
+
+    .mark {
+      display: inline-block;
+      font-weight: 700;
+      font-size: 0.72rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-right: 5px;
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      line-height: 1.5;
+    }
+
+    .mark-O {
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.16);
+    }
+
+    .mark-X {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.16);
+    }
+
+    .ex-examples {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .ex-example {
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: var(--bg-input);
+    }
+
+    .ex-example--bad {
+      border-color: rgba(239, 68, 68, 0.45);
+    }
+
+    .ex-example__text {
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      font-size: 0.92rem;
+      font-weight: 600;
+      line-height: 1.7;
+      word-break: break-word;
+    }
+
+    .ex-example--ok .ex-example__text { color: #6ee7b7; }
+    .ex-example--bad .ex-example__text { color: #fca5a5; }
+
+    .ex-example__note {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      line-height: 1.75;
+    }
+
+    .ex-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ex-list li {
+      font-size: 0.86rem;
+      line-height: 1.8;
+      padding-left: 18px;
+      position: relative;
+    }
+
+    .ex-list li::before {
+      content: "▸";
+      position: absolute;
+      left: 0;
+      color: var(--accent-purple);
+    }
+
+    .ex-empty {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      line-height: 1.8;
+      background: var(--bg-input);
+      border: 1px dashed var(--border-color);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 680px) {
+      .explain-panel { width: 100vw; }
+      .explain__head, .explain__body { padding-left: 16px; padding-right: 16px; }
+      .ex-table thead { display: none; }
+      .ex-table, .ex-table tbody, .ex-table tr, .ex-table td { display: block; width: 100%; }
+      .ex-table tr {
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        margin-bottom: 12px;
+        padding: 6px 4px;
+      }
+      .ex-table td { border-bottom: none; padding: 6px 10px; }
+      .ex-table td::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        margin-bottom: 3px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -528,6 +820,7 @@
 
     <div class="status-banner" id="statusBanner">
       <span>✔ 整句拼寫完成！按 <strong>Space</strong> 進入下一個單元，或按 <strong>Enter</strong> 重新練習本句。</span>
+      <button class="explain-btn" id="explainBtn">📖 解析這一句</button>
     </div>
   </main>
 
@@ -581,8 +874,23 @@
     </div>
   </div>
 
+  <!-- 解析面板：從右側滑入 -->
+  <div class="explain-scrim" id="explainScrim"></div>
+  <aside class="explain-panel" id="explainPanel" aria-label="這一句的解析">
+    <header class="explain__head">
+      <div>
+        <h2>📖 這一句的解析</h2>
+        <p class="explain__sub" id="explainSub"></p>
+      </div>
+      <button class="explain__close" id="explainClose" aria-label="關閉解析">✕</button>
+    </header>
+    <div class="explain__body" id="explainBody"></div>
+  </aside>
+
   <!-- 共用句庫：GitHub 上 data/sentences.js 的內容，會蓋掉 App 內建的預設句庫 -->
   <script src="data/sentences.js"></script>
+  <!-- 老師寫好的解析庫：GitHub 上 data/analysis.js；沒有的句子會用自動檢查提示 -->
+  <script src="data/analysis.js"></script>
 
   <script>
     const defaultRawText = `This = 這 = /ðɪs/
@@ -594,7 +902,17 @@ Mr. President = 總統先生 = /ˈmɪstər ˈprezɪdənt/
 calling = 來電 = /ˈkɔːlɪŋ/
 If it wasn't because of you calling = 如果不是因為您打電話來 = /ɪf ɪt wɑːznˈt bɪˈkəz əv juː ˈkɔːlɪŋ/
 I am on stage = 我正在舞台上 = /aɪ æm ɑːn steɪdʒ/
-If it wasn't because of you calling, I am on stage with the besties. = 如果不是因為您打電話來，我現在正跟好朋友在台上呢。 = /ɪf ɪt wɑːznˈt bɪˈkəz əv juː ˈkɔːlɪŋ, aɪ æm ɑːn steɪdʒ wɪð ðə ˈbestiːz/`;
+If it wasn't because of you calling, I am on stage with the besties. = 如果不是因為您打電話來，我現在正跟好朋友在台上呢。 = /ɪf ɪt wɑːznˈt bɪˈkəz əv juː ˈkɔːlɪŋ, aɪ æm ɑːn steɪdʒ wɪð ðə ˈbestiːz/
+kinds of animals = 各種動物 = /ˈkaɪndz əv ˈænɪ.məlz/
+There are many kinds of animals in the zoo. = 動物園裡有許多種動物。 = /ðeər ɑː ˈmeni ˈkaɪndz əv ˈænɪ.məlz ɪn ðə zuː/
+How many kinds of animals can you see in this picture? = 你在這張圖片裡看得到多少種動物？ = /haʊ ˈmeni ˈkaɪndz əv ˈænɪ.məlz kən juː siː ɪn ðɪs ˈpɪkʃə/
+My brother is interested in animals. = 我弟弟對動物感興趣。 = /maɪ ˈbrʌðər ɪz ˈɪntrəstɪd ɪn ˈænɪ.məlz/
+The elephant is bigger than the horse. = 大象比馬大。 = /ðiː ˈelɪfənt ɪz ˈbɪɡər ðæn ðə hɔːs/
+She has three pets at home. = 她家裡有三隻寵物。 = /ʃiː hæz θriː pets ət həʊm/
+These animals are endangered. = 這些動物是瀕危的。 = /ðiːz ˈænɪ.məlz ɑːr ɪnˈdaʒəd/
+We should protect animals. = 我們應該保護動物。 = /wiː ʃʊd prəˈtekt ˈænɪ.məlz/
+Do not feed the animals. = 不要餵食動物。 = /duː nəʊt fiːd ðiː ˈænɪ.məlz/
+The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz kləʊzd ˈevri ˈmʌndeɪ/`;
 
     /* ================= 儲存：句庫來源 + 練習進度 ================= */
     const STORAGE_BANK = 'wm.bank.v1';
@@ -646,6 +964,13 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
     const bankHint = document.getElementById('bankHint');
     const exportText = document.getElementById('exportText');
     const useRepoBtn = document.getElementById('useRepoBtn');
+
+    const explainPanel = document.getElementById('explainPanel');
+    const explainScrim = document.getElementById('explainScrim');
+    const explainBody = document.getElementById('explainBody');
+    const explainSub = document.getElementById('explainSub');
+    const explainBtn = document.getElementById('explainBtn');
+    const explainClose = document.getElementById('explainClose');
 
     /* ================= 句庫來源 ================= */
     function currentRaw() {
@@ -802,6 +1127,7 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
 
       promptZh.textContent = currentData.zh;
       promptIpa.textContent = currentData.ipa || '';
+      statusBanner.classList.remove('complete');
       statusBanner.style.display = 'none';
       wordsContainer.innerHTML = '';
 
@@ -862,6 +1188,7 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
       });
 
       const restored = restore ? applyProgress() : 0;
+      if (restore) checkSentenceCompletion();
       saveProgress();
       speakText(currentData.en, 1);
       setTimeout(() => {
@@ -956,9 +1283,9 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
     }
 
     function checkSentenceCompletion() {
-      if (isSentenceComplete()) {
-        statusBanner.style.display = 'flex';
-      }
+      const done = isSentenceComplete();
+      statusBanner.classList.toggle('complete', done);
+      statusBanner.style.display = done ? 'flex' : 'none';
     }
 
     document.addEventListener('keydown', (e) => {
@@ -977,9 +1304,13 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
         prevCard();
         return;
       }
+      if (e.key === 'Escape' && explainPanel.classList.contains('open')) {
+        closeExplain();
+        return;
+      }
       if (e.key === 'Enter') {
         const isModalOpen = importModal.style.display === 'flex';
-        if (!isModalOpen) {
+        if (!isModalOpen && !explainPanel.classList.contains('open')) {
           e.preventDefault();
           renderCard(currentIndex);
         }
@@ -1081,12 +1412,206 @@ If it wasn't because of you calling, I am on stage with the besties. = 如果不
       toast('已清除本機記錄');
     });
 
+    /* ================= 解析這一句 ================= */
+    const ANALYSIS = (typeof window.SENTENCE_ANALYSIS === 'object' && window.SENTENCE_ANALYSIS) || {};
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    // 把文字裡的 (O) / (X) 變成綠色 / 紅色標記
+    function rich(str) {
+      return escapeHtml(str).replace(/\((O|X)\)/g, '<span class="mark mark-$1">($1)</span>');
+    }
+
+    // 句庫裡還沒有老師解析時，用這些規則產生自我檢查提示
+    const NOT_PLURAL = {
+      is: 1, was: 1, has: 1, this: 1, his: 1, its: 1, as: 1, us: 1, yes: 1,
+      always: 1, sometimes: 1, news: 1, mathematics: 1, physics: 1
+    };
+
+    function autoAnalysis(card) {
+      const en = card.en;
+      const items = [];
+
+      if (/\b(is|am|are|was|were)\b/i.test(en)) {
+        const be = en.match(/\b(is|am|are|was|were)\b/i)[1];
+        const swap = { is: 'are', am: 'is', are: 'is', was: 'were', were: 'was' }[be.toLowerCase()];
+        items.push({
+          point: 'be 動詞',
+          ok: en,
+          bad: en.replace(new RegExp('\\b' + be + '\\b', 'i'), swap),
+          why: '這一句用 be 動詞表示狀態或身分。判斷方式：「I 用 am」、「you / we / they 用 are」、「he / she / it 單數用 is」。'
+        });
+      }
+
+      if (/\bof\b/i.test(en)) {
+        const after = (en.match(/\bof\s+([A-Za-z' -]+)/i) || [])[1] || '';
+        items.push({
+          point: '介系詞 of',
+          ok: 'of ' + (after || '名詞'),
+          bad: 'of ' + (after ? after.replace(/s$/, '') : '動詞原形'),
+          why: 'of 是介系詞，後面一定要接名詞（或 -ing 形式），不能接動詞原形。看到 of 就先檢查後面的名詞要不要加 s。'
+        });
+      }
+
+      const plurals = (en.match(/[A-Za-z']+/g) || [])
+        .map(w => w.toLowerCase())
+        .filter(w => /s$/.test(w) && w.length > 2 && !NOT_PLURAL[w] && !/ss$/.test(w) && !/us$/.test(w));
+      if (plurals.length) {
+        items.push({
+          point: '名詞複數',
+          ok: plurals.join(' / '),
+          bad: plurals.map(w => w.replace(/es$/, '').replace(/s$/, '')).join(' / '),
+          why: '複數名詞的 s 一定要留。一般名詞直接加 s；以 s / x / ch / sh 結尾加 es；輔音字母 + y 結尾要把 y 變 i 再加 es。'
+        });
+      }
+
+      const modal = en.match(/\b(can|could|should|would|will|must)\s+([a-z']+)/i);
+      if (modal) {
+        const base = modal[2].replace(/s$/, '');
+        items.push({
+          point: '情態動詞 + 動詞原形',
+          ok: modal[1] + ' ' + base,
+          bad: modal[1] + ' to ' + base,
+          why: 'can / could / should / would / will / must 後面一律接動詞原形：不加 to、不加 -s、不加 -ing。'
+        });
+      }
+
+      if (!items.length) {
+        items.push({
+          point: '句子結構自我檢查',
+          ok: en,
+          bad: '請同學找出自己最容易漏掉的那個字',
+          why: '這一句還沒有老師寫好的逐項解析。先用三個檢查：「① 主詞和動詞有沒有配對」、「② 名詞該不該加 s」、「③ 介系詞（in / on / at / of / for）放對了嗎」。'
+        });
+      }
+
+      return {
+        headline: '這一句目前只有 App 自動產生的自我檢查提示，老師的詳細解析還沒加入。',
+        items: items,
+        examples: [],
+        traps: [
+          '整句打完後再從頭唸一次，特別檢查 s、a / an / the、介系詞這三個地方。',
+          '同一個字錯到第 3 次時 App 會自動朗讀，這時請跟著唸，注意每個字的音。'
+        ],
+        strategy: [
+          '想讓這一句也有完整解析，把內容加到專案的 data/analysis.js，所有裝置就會共用。',
+          '每天練完一句，把錯的那個字圈起來，隔天複習一次，比整句重打有效。'
+        ]
+      };
+    }
+
+    function currentAnalysis() {
+      const card = dataset[currentIndex];
+      if (!card) return null;
+      const found = ANALYSIS[card.en] || ANALYSIS[card.en.replace(/[.?!]+$/, '')] || ANALYSIS[card.en.trim()];
+      return { card: card, data: found || autoAnalysis(card), fromLibrary: !!found };
+    }
+
+    function renderExplain() {
+      const entry = currentAnalysis();
+      if (!entry) return;
+      const card = entry.card;
+      const a = entry.data;
+
+      explainSub.textContent = '第 ' + (currentIndex + 1) + ' 句 / 共 ' + dataset.length + ' 句'
+        + (entry.fromLibrary ? '' : '　·　自動提示');
+
+      let html = '';
+
+      html += '<div class="ex-sentence">';
+      html += '<div class="ex-sentence__en">' + rich('(O) ' + card.en) + '</div>';
+      html += '<div class="ex-sentence__meta">中文：' + escapeHtml(card.zh || '—');
+      if (card.ipa) html += '<br>音標：<span class="ex-sentence__ipa">' + escapeHtml(card.ipa) + '</span>';
+      html += '</div></div>';
+
+      if (a.headline) html += '<div class="ex-headline">' + rich(a.headline) + '</div>';
+
+      if (a.items && a.items.length) {
+        html += '<section class="ex-section"><h3 class="ex-section__title">一、逐項對照表</h3>';
+        html += '<table class="ex-table"><thead><tr>'
+              + '<th>項目</th><th>正確版本</th><th>學生常犯錯誤</th><th>錯誤原因解析</th>'
+              + '</tr></thead><tbody>';
+        a.items.forEach(it => {
+          html += '<tr>'
+            + '<td data-label="項目"><strong>' + rich(it.point || '') + '</strong></td>'
+            + '<td class="en ex-cell--ok" data-label="正確版本">' + rich('(O) ' + (it.ok || '')) + '</td>'
+            + '<td class="en ex-cell--bad" data-label="常見錯誤">' + rich('(X) ' + (it.bad || '')) + '</td>'
+            + '<td data-label="解析">' + rich(it.why || '')
+            + (it.exam ? '<br><span style="color:var(--text-muted)">📌 ' + rich(it.exam) + '</span>' : '')
+            + '</td></tr>';
+        });
+        html += '</tbody></table></section>';
+      }
+
+      if (a.examples && a.examples.length) {
+        html += '<section class="ex-section"><h3 class="ex-section__title">二、範例兩句（一對一錯）</h3><div class="ex-examples">';
+        a.examples.forEach(ex => {
+          const ok = ex.ok !== false;
+          html += '<div class="ex-example ' + (ok ? 'ex-example--ok' : 'ex-example--bad') + '">'
+            + '<div class="ex-example__text">' + rich((ok ? '(O) ' : '(X) ') + (ex.text || '')) + '</div>'
+            + '<div class="ex-example__note">' + rich(ex.note || '') + '</div>'
+            + '</div>';
+        });
+        html += '</div></section>';
+      }
+
+      if (a.traps && a.traps.length) {
+        html += '<section class="ex-section"><h3 class="ex-section__title">三、國中教育會考陷阱提醒</h3><ul class="ex-list">';
+        a.traps.forEach(t => { html += '<li>' + rich(t) + '</li>'; });
+        html += '</ul></section>';
+      }
+
+      if (a.strategy && a.strategy.length) {
+        html += '<section class="ex-section"><h3 class="ex-section__title">四、實戰建議</h3><ul class="ex-list">';
+        a.strategy.forEach(t => { html += '<li>' + rich(t) + '</li>'; });
+        html += '</ul></section>';
+      }
+
+      if (!entry.fromLibrary) {
+        html += '<p class="ex-empty">這一句還沒有老師寫好的完整解析，上方表格是 App 依句型自動產生的自我檢查提示。'
+              + '把內容補到專案的 data/analysis.js 並 git push，所有裝置就會共用同一份解析。</p>';
+      }
+
+      explainBody.innerHTML = html;
+      explainBody.scrollTop = 0;
+    }
+
+    function openExplain() {
+      renderExplain();
+      explainPanel.classList.add('open');
+      explainScrim.classList.add('open');
+    }
+
+    function closeExplain() {
+      explainPanel.classList.remove('open');
+      explainScrim.classList.remove('open');
+    }
+
+    explainBtn.addEventListener('click', openExplain);
+    explainClose.addEventListener('click', closeExplain);
+    explainScrim.addEventListener('click', closeExplain);
+
     /* ================= 啟動：接續上次的進度 ================= */
     loadProgress();
     dataset = parseRawText(currentRaw());
     if (dataset.length === 0) dataset = parseRawText(defaultRawText);
     const resumeIndex = Math.min(Math.max(progress.index, 0), Math.max(dataset.length - 1, 0));
     renderCard(resumeIndex, true);
+
+    // #解析 / #explain：這一頁如果已經打完，直接開啟解析面板（方便分享、也方便測試）
+    // 注意：location.hash 遇到中文會回傳百分比編碼，必須先 decode 再比對
+    const pageHash = decodeURIComponent(location.hash || '').toLowerCase();
+    if (pageHash === '#解析' || pageHash === '#explain') {
+      setTimeout(() => {
+        if (isSentenceComplete()) openExplain();
+        else toast('先把這一句打完，才會出現「解析這一句」');
+      }, 400);
+    }
   </script>
 </body>
 </html>
