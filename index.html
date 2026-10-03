@@ -811,6 +811,19 @@
       line-height: 1.75;
     }
 
+    /* ---- 導言段：說明這一句／這一個片語是什麼 ---- */
+    .ex-intro {
+      font-size: 0.88rem;
+      color: var(--text-main);
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-left: 3px solid var(--accent-purple);
+      padding: 12px 14px;
+      border-radius: 0 10px 10px 0;
+      margin-bottom: 14px;
+      line-height: 1.85;
+    }
+
     .ex-mistake__label {
       flex: 0 0 92px;
       color: var(--text-muted);
@@ -1686,6 +1699,7 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
       if (card.ipa) html += '<br>音標：<span class="ex-sentence__ipa">' + escapeHtml(card.ipa) + '</span>';
       html += '</div></div>';
 
+      if (a.intro) html += '<div class="ex-intro">' + rich(a.intro) + '</div>';
       if (a.headline) html += '<div class="ex-headline">' + rich(a.headline) + '</div>';
 
       // 一、句子結構與詞性對照表

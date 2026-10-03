@@ -994,6 +994,97 @@ window.SENTENCE_ANALYSIS = {
       "大聲朗讀正確句（There are many kinds of animals in the zoo.），培養對複數 s 的語感。"
     ]
   },
+  "being with all kinds of animals": {
+    "zh": "與各種動物相處",
+    "ipa": "/ˈbiːɪŋ wɪð ɔːl kaɪndz əv ˈænɪ.məlz/",
+    "intro": "這是一個正確的**動名詞片語（V-ing 片語）**，意思是「與各種動物相處」「和所有種類的動物在一起」。它通常不能單獨成為一個完整的句子，而是作為句子的**主詞、補語或修飾語**來使用。",
+    "headline": "動名詞片語當主詞時，整個片語視為單數，後面的動詞要用 is",
+    "structure": [
+      {
+        "role": "動名詞/現在分詞",
+        "token": "being",
+        "pos": "動詞 (Verb) 的 -ing 形式",
+        "func": "作為動名詞，表示「處於…狀態」或「存在」；單獨使用時要當名詞看待",
+        "mark": "O"
+      },
+      {
+        "role": "介系詞",
+        "token": "with",
+        "pos": "介系詞 (Preposition)",
+        "func": "表示「與…一起」，後面接名詞或動名詞片語",
+        "mark": "O"
+      },
+      {
+        "role": "量詞/片語",
+        "token": "all kinds of",
+        "pos": "片語 (Phrase)",
+        "func": "表示「各種各樣的」；kind 必須加 s",
+        "mark": "O"
+      },
+      {
+        "role": "受詞",
+        "token": "animals",
+        "pos": "名詞 (Noun) — animal 的複數",
+        "func": "作為 of 的受詞，表示「動物」；因前面 kinds 是複數而用複數形",
+        "mark": "O"
+      }
+    ],
+    "mistakes": [
+      {
+        "title": "動詞形式錯誤（該用原形卻用 ing，或該用 ing 卻用原形）",
+        "bad": "(X) be with all kinds of animals（當作主詞時）",
+        "ok": "(O) being with all kinds of animals（當作主詞時）",
+        "why": "當我們要把「動詞片語」當作「主詞」使用時，必須把動詞改為**動名詞 (V-ing)** 形式。學生常忘記加 ing，直接把原形動詞 be 放在句首當主詞，這是嚴重的文法錯誤。判斷法：主詞位置不能放 be 動詞；如果要用「和動物相處」當主詞，就一定要用 being 開頭。",
+        "exOkText": "(O) **Being with all kinds of animals** is exciting.",
+        "exOkZh": "與各種動物相處很令人興奮。",
+        "exBadText": "(X) **Be with all kinds of animals** is exciting.",
+        "exBadNote": "錯誤：主詞位置不能放原形動詞 be，要用動名詞 being"
+      },
+      {
+        "title": "介系詞誤用（of / for 取代 with）",
+        "bad": "(X) being of all kinds of animals ／ (X) being for all kinds of animals",
+        "ok": "(O) being with all kinds of animals",
+        "why": "表達「與…相處／在一起」時，介系詞必須使用 **with**。學生常因中文翻譯「和」的影響，誤用 of 或 for：of 是「屬於、包含」，for 是「為了、給」，兩個都不表示「一起」，放進這個位置句子就不成立。",
+        "exOkText": "(O) She enjoys **being with her friends**.",
+        "exOkZh": "她喜歡和朋友在一起。",
+        "exBadText": "(X) She enjoys **being of her friends**.",
+        "exBadNote": "錯誤：介系詞應為 with，不是 of"
+      },
+      {
+        "title": "複數一致性錯誤（kinds 和 animals 的單複數不匹配）",
+        "bad": "(X) being with all kind of animals ／ (X) being with all kinds of animal",
+        "ok": "(O) being with all kinds of animals",
+        "why": "all kinds of 是固定用法，**kind 必須加 s**，而且後面的 **animal 也必須是複數 animals**。學生常犯兩種相反的錯：前面加了 s、後面卻忘記加 s（all kinds of animal）；或是前面沒加 s、後面卻加了 s（all kind of animals）。",
+        "exOkText": "(O) He likes **all kinds of sports**.",
+        "exOkZh": "他喜歡各種運動。",
+        "exBadText": "(X) He likes **all kind of sports**.",
+        "exBadNote": "錯誤：kind 應為複數 kinds"
+      },
+      {
+        "title": "當作主詞時，動詞單複數呼應錯誤（用 are 而非 is）",
+        "bad": "(X) Being with all kinds of animals **are** fun.",
+        "ok": "(O) Being with all kinds of animals **is** fun.",
+        "why": "當 **Being with…** 這個動名詞片語當作主詞時，**整個片語視為單數**，因此動詞必須使用單數動詞 **is**。學生常被後面的 animals（複數）混淆而誤用 are。口訣：動名詞開頭的主詞一律當單數，與後面名詞的單複數無關。",
+        "exOkText": "(O) **Playing basketball is** good for health.",
+        "exOkZh": "打籃球對健康有益。",
+        "exBadText": "(X) **Playing basketball are** good for health.",
+        "exBadNote": "錯誤：動名詞主詞視為單數，動詞應為 is"
+      }
+    ],
+    "traps": [
+      "**動名詞主詞的陷阱**：會考常考「V-ing + 單數動詞」的句型。看到句首是 V-ing（如 Being、Playing、Reading），後面的動詞一定要選 is、was、has 等單數動詞，不能選 are、were、have。",
+      "**量詞複數的陷阱**：會考常考 all kinds of、many kinds of、different kinds of 等片語。務必注意 kind 必須加 s，且後面的名詞也必須是複數。",
+      "**介系詞陷阱**：在克漏字測驗中，常考「being ___」的空格，正確答案永遠是 with（表示陪伴、相處），不可選 of、in、on 等。",
+      "**完整句子的陷阱**：會考閱讀測驗中，常出現「Being with all kinds of animals」單獨出現在選項中，這是一個片語，不是完整句子。若題目要求選出「完整的句子」，這個選項就是錯的。"
+    ],
+    "strategy": [
+      "記住公式：背誦「Being with + 複數名詞 + 單數動詞」這個公式。例如：Being with good friends is happy.",
+      "判斷主詞：看到「Being with…」開頭的句子，立刻在 Being 底下畫線，提醒自己這是動名詞主詞，動詞要用單數。",
+      "注意前後一致性：寫作或選擇題時，檢查 all kinds 和後面的名詞是否同時是複數。",
+      "區分片語與句子：若選項是「Being with all kinds of animals」，它只是一個片語，不能單獨存在，必須搭配主要動詞（如 is fun）才能成為完整句子。",
+      "多讀例句：大聲朗讀正確的句子（如：Being with all kinds of animals is interesting.），培養對動名詞主詞與單數動詞的語感。"
+    ]
+  },
   "There are many kinds of animals in the zoo.": {
     "zh": "動物園裡有許多種動物。",
     "ipa": "/ðeər ɑː ˈmeni ˈkaɪndz əv ˈænɪ.məlz ɪn ðə zuː/",
