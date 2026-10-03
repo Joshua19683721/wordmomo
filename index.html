@@ -538,7 +538,7 @@
       position: fixed;
       top: 0;
       right: 0;
-      width: min(780px, 100vw);
+      width: min(880px, 100vw);
       height: 100vh;
       background: var(--bg-card);
       border-left: 1px solid var(--border-color);
@@ -761,8 +761,114 @@
       margin-bottom: 20px;
     }
 
+    /* ---- 詞性對照表 ---- */
+    .ex-table--pos td:nth-child(2) {
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      color: #e9d5ff;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .ex-table--pos td:nth-child(3) {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+
+    .ex-table--pos th:nth-child(5),
+    .ex-table--pos td:nth-child(5) {
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .ex-table--pos td:nth-child(1) {
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* ---- 錯誤類型卡片 ---- */
+    .ex-mistake {
+      border: 1px solid var(--border-color);
+      border-left: 3px solid var(--accent-red);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      background: var(--bg-input);
+    }
+
+    .ex-mistake__title {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: #fca5a5;
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+
+    .ex-mistake__row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+      line-height: 1.75;
+    }
+
+    .ex-mistake__label {
+      flex: 0 0 92px;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      padding-top: 2px;
+    }
+
+    .ex-mistake__value {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ex-mistake__value b {
+      color: var(--text-main);
+    }
+
+    .ex-mistake .ex-exline {
+      margin-top: 4px;
+      font-family: 'Consolas', 'Courier New', Courier, monospace;
+      font-size: 0.84rem;
+      line-height: 1.7;
+      word-break: break-word;
+    }
+
+    .ex-mistake .ex-exline .zh {
+      font-family: inherit;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .ex-sublabel {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+
+    /* ---- 編號清單 ---- */
+    .ex-list--num { counter-reset: exnum; }
+
+    .ex-list--num li {
+      padding-left: 26px;
+    }
+
+    .ex-list--num li::before {
+      counter-increment: exnum;
+      content: counter(exnum) ".";
+      font-weight: 700;
+    }
+
     @media (max-width: 680px) {
       .explain-panel { width: 100vw; }
+      .ex-mistake__row { flex-direction: column; gap: 2px; }
+      .ex-mistake__label { flex: none; }
+      .ex-table--pos td:nth-child(2),
+      .ex-table--pos td:nth-child(1),
+      .ex-table--pos td:nth-child(5) { white-space: normal; }
       .explain__head, .explain__body { padding-left: 16px; padding-right: 16px; }
       .ex-table thead { display: none; }
       .ex-table, .ex-table tbody, .ex-table tr, .ex-table td { display: block; width: 100%; }
@@ -1422,81 +1528,131 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
         .replace(/>/g, '&gt;');
     }
 
-    // 把文字裡的 (O) / (X) 變成綠色 / 紅色標記
+// 把文字裡的 (O) / (X) 變成綠色 / 紅色標記；**粗體** 轉成 <b>
     function rich(str) {
-      return escapeHtml(str).replace(/\((O|X)\)/g, '<span class="mark mark-$1">($1)</span>');
+      return escapeHtml(str)
+        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+        .replace(/\((O|X)\)/g, '<span class="mark mark-$1">($1)</span>');
     }
 
-    // 句庫裡還沒有老師解析時，用這些規則產生自我檢查提示
-    const NOT_PLURAL = {
-      is: 1, was: 1, has: 1, this: 1, his: 1, its: 1, as: 1, us: 1, yes: 1,
-      always: 1, sometimes: 1, news: 1, mathematics: 1, physics: 1
-    };
+    // 內容本身沒有 (O)/(X) 時自動補上
+    function marked(text, kind) {
+      const s = String(text == null ? '' : text).trim();
+      if (/^\((O|X)\)/.test(s)) return rich(s);
+      return rich('(' + kind + ') ' + s);
+    }
+
+    function fieldRow(label, valueHtml) {
+      return '<div class="ex-mistake__row"><div class="ex-mistake__label">' + label
+        + '</div><div class="ex-mistake__value">' + valueHtml + '</div></div>';
+    }
+
+    /* ---------- 句庫裡還沒有老師解析時，自動產生詞性對照與檢查提示 ---------- */
+    const PREPS = { of:1, in:1, on:1, at:1, for:1, from:1, to:1, with:1, by:1, about:1, into:1, than:1, after:1, before:1 };
+    const MODALS = { can:1, could:1, should:1, would:1, will:1, must:1, may:1, might:1 };
+    const BE = { is:1, am:1, are:1, was:1, were:1, be:1, been:1 };
+    const DETS = { the:1, a:1, an:1, my:1, your:1, his:1, her:1, their:1, our:1, this:1, that:1, these:1, those:1, every:1, some:1, many:1, no:1 };
+
+    function autoStructure(card) {
+      const raw = card.en.match(/[A-Za-z']+|[0-9]+|[^\sA-Za-z0-9']/g) || [];
+      const rows = [];
+      let nouns = 0, verbs = 0;
+      raw.forEach((tok, i) => {
+        if (/^[^\sA-Za-z0-9']$/.test(tok)) {
+          rows.push({ role: '標點', token: tok, pos: '標點 (Punctuation)',
+            func: '標點符號，依中文語氣放置；逗號之後的句子要用小寫開頭', mark: 'O' });
+          return;
+        }
+        const w = tok.toLowerCase();
+        if (BE[w]) { verbs++; rows.push({ role: 'be 動詞', token: tok, pos: '動詞 (Verb) — be 動詞', func: '表示身分或狀態，必須與主詞的單複數一致', mark: 'O' }); return; }
+        if (MODALS[w]) { verbs++; rows.push({ role: '情態動詞', token: tok, pos: '情態動詞 (Modal Verb)', func: '後面一律接動詞原形，不加 to、不加 -s', mark: 'O' }); return; }
+        if (PREPS[w]) { rows.push({ role: '介系詞', token: tok, pos: '介系詞 (Preposition)', func: '後面接名詞或 -ing 形式，不能接動詞原形', mark: 'O' }); return; }
+        if (DETS[w]) { rows.push({ role: '限定詞', token: tok, pos: '限定詞 (Determiner)', func: '放在名詞前面，決定後面的名詞用單數還是複數', mark: 'O' }); return; }
+        if (/^(how|what|where|when|who|why|which|whose)$/.test(w)) { rows.push({ role: '疑問詞', token: tok, pos: '疑問詞 (Question Word)', func: '放在句首提問，後面要用一般疑問句語序', mark: 'O' }); return; }
+        if (w === 'and' || w === 'but' || w === 'or') { rows.push({ role: '連接詞', token: tok, pos: '連接詞 (Conjunction)', func: '連接詞語或子句', mark: 'O' }); return; }
+        if (w === 'not') { rows.push({ role: '否定詞', token: tok, pos: '否定詞 (Participle)', func: '放在 be 動詞或助動詞之後', mark: 'O' }); return; }
+        if (/^\d+$/.test(w)) { rows.push({ role: '數詞', token: tok, pos: '數詞 (Numeral)', func: '表示數量；two 以上後面的可數名詞要用複數', mark: 'O' }); return; }
+        if (i === 0) { nouns++; rows.push({ role: '名詞/主詞', token: tok, pos: '名詞 (Noun)', func: '句子的主詞中心詞', mark: 'O' }); return; }
+        if (nouns >= 1 && verbs === 0) {
+          verbs++;
+          rows.push({ role: '動詞', token: tok, pos: '動詞 (Verb)', func: '句子的主要動作', mark: 'O' });
+          return;
+        }
+        nouns++;
+        rows.push({ role: '名詞', token: tok, pos: '名詞 (Noun)', func: '句中的名詞成分，可數名詞要依數量決定單複數', mark: 'O' });
+      });
+      return rows;
+    }
 
     function autoAnalysis(card) {
       const en = card.en;
-      const items = [];
+      const mistakes = [];
 
-      if (/\b(is|am|are|was|were)\b/i.test(en)) {
-        const be = en.match(/\b(is|am|are|was|were)\b/i)[1];
+      const be = (en.match(/\b(is|am|are|was|were)\b/i) || [])[1];
+      if (be) {
         const swap = { is: 'are', am: 'is', are: 'is', was: 'were', were: 'was' }[be.toLowerCase()];
-        items.push({
-          point: 'be 動詞',
-          ok: en,
-          bad: en.replace(new RegExp('\\b' + be + '\\b', 'i'), swap),
-          why: '這一句用 be 動詞表示狀態或身分。判斷方式：「I 用 am」、「you / we / they 用 are」、「he / she / it 單數用 is」。'
-        });
-      }
-
-      if (/\bof\b/i.test(en)) {
-        const after = (en.match(/\bof\s+([A-Za-z' -]+)/i) || [])[1] || '';
-        items.push({
-          point: '介系詞 of',
-          ok: 'of ' + (after || '名詞'),
-          bad: 'of ' + (after ? after.replace(/s$/, '') : '動詞原形'),
-          why: 'of 是介系詞，後面一定要接名詞（或 -ing 形式），不能接動詞原形。看到 of 就先檢查後面的名詞要不要加 s。'
-        });
-      }
-
-      const plurals = (en.match(/[A-Za-z']+/g) || [])
-        .map(w => w.toLowerCase())
-        .filter(w => /s$/.test(w) && w.length > 2 && !NOT_PLURAL[w] && !/ss$/.test(w) && !/us$/.test(w));
-      if (plurals.length) {
-        items.push({
-          point: '名詞複數',
-          ok: plurals.join(' / '),
-          bad: plurals.map(w => w.replace(/es$/, '').replace(/s$/, '')).join(' / '),
-          why: '複數名詞的 s 一定要留。一般名詞直接加 s；以 s / x / ch / sh 結尾加 es；輔音字母 + y 結尾要把 y 變 i 再加 es。'
+        mistakes.push({
+          title: '主詞與 be 動詞不一致',
+          bad: '(X) ' + en.replace(new RegExp('\\b' + be + '\\b', 'i'), swap),
+          ok: '(O) ' + en,
+          why: 'be 動詞要看主詞決定單複數：「I 用 am」、「you / we / they 用 are」、「he / she / it 單數用 is」。中文沒有單複數變化，這是最容易忘記的一條規則。',
+          exOkText: '(O) This **is** my new plan.',
+          exOkZh: '這是我新的計畫。',
+          exBadText: '(X) This **are** my new plan.',
+          exBadNote: '錯誤：This 是單數，be 動詞要用 is'
         });
       }
 
       const modal = en.match(/\b(can|could|should|would|will|must)\s+([a-z']+)/i);
       if (modal) {
         const base = modal[2].replace(/s$/, '');
-        items.push({
-          point: '情態動詞 + 動詞原形',
-          ok: modal[1] + ' ' + base,
-          bad: modal[1] + ' to ' + base,
-          why: 'can / could / should / would / will / must 後面一律接動詞原形：不加 to、不加 -s、不加 -ing。'
+        mistakes.push({
+          title: '情態動詞後面接動詞原形',
+          bad: '(X) ' + modal[1] + ' to ' + base,
+          ok: '(O) ' + modal[1] + ' ' + base,
+          why: 'can / could / should / would / will / must 後面一律接動詞原形：不加 to、不加 -s、不加 -ing。',
+          exOkText: '(O) We **should** protect animals.',
+          exOkZh: '我們應該保護動物。',
+          exBadText: '(X) We **should to** protect animals.',
+          exBadNote: '錯誤：should 後面接原形，不加 to'
         });
       }
 
-      if (!items.length) {
-        items.push({
-          point: '句子結構自我檢查',
-          ok: en,
-          bad: '請同學找出自己最容易漏掉的那個字',
-          why: '這一句還沒有老師寫好的逐項解析。先用三個檢查：「① 主詞和動詞有沒有配對」、「② 名詞該不該加 s」、「③ 介系詞（in / on / at / of / for）放對了嗎」。'
+      const ofMatch = en.match(/\bof\s+([A-Za-z' -]+)/i);
+      if (ofMatch) {
+        mistakes.push({
+          title: '介系詞 of 後面的名詞複數',
+          bad: '(X) ' + ofMatch[1].replace(/s$/, ''),
+          ok: '(O) ' + ofMatch[1],
+          why: 'of 是介系詞，後面一定要接名詞或 -ing 形式。前面的名詞若是複數，of 後面的可數名詞也要一起變複數，這是台灣學生最常漏掉的一個 s。',
+          exOkText: '(O) There are many **kinds of animals** in the zoo.',
+          exOkZh: '動物園裡有許多種動物。',
+          exBadText: '(X) There are many kinds of **animal** in the zoo.',
+          exBadNote: '錯誤：kinds 是複數，of 後面的 animal 也要複數'
+        });
+      }
+
+      if (!mistakes.length) {
+        mistakes.push({
+          title: '句子結構自我檢查',
+          bad: '(X) ' + en + '　← 請同學找出自己最容易漏掉的那個字',
+          ok: '(O) ' + en,
+          why: '這一句還沒有老師寫好的詳細解析。先用三個檢查：「① 主詞和 be 動詞有沒有配對」、「② 名詞該不該加 s」、「③ 介系詞（in / on / at / of / for）放對了嗎」。',
+          exOkText: '(O) This **is** my new plan.',
+          exOkZh: '這是我新的計畫。',
+          exBadText: '(X) This **are** my new plan.',
+          exBadNote: '錯誤範例：be 動詞要和主詞一致'
         });
       }
 
       return {
-        headline: '這一句目前只有 App 自動產生的自我檢查提示，老師的詳細解析還沒加入。',
-        items: items,
-        examples: [],
+        headline: '這一句目前只有 App 依句型自動產生的檢查提示，老師的完整解析還沒加入。',
+        structure: autoStructure(card),
+        mistakes: mistakes,
         traps: [
           '整句打完後再從頭唸一次，特別檢查 s、a / an / the、介系詞這三個地方。',
-          '同一個字錯到第 3 次時 App 會自動朗讀，這時請跟著唸，注意每個字的音。'
+          '同一個字錯到第 3 次時 App 會自動朗讀，這時請跟著唸，注意每個字的音。',
+          '標點也要檢查：逗號之後用小寫，句號之後才大寫。'
         ],
         strategy: [
           '想讓這一句也有完整解析，把內容加到專案的 data/analysis.js，所有裝置就會共用。',
@@ -1523,57 +1679,78 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
 
       let html = '';
 
+      // 原句
       html += '<div class="ex-sentence">';
-      html += '<div class="ex-sentence__en">' + rich('(O) ' + card.en) + '</div>';
+      html += '<div class="ex-sentence__en">' + marked(card.en, 'O') + '</div>';
       html += '<div class="ex-sentence__meta">中文：' + escapeHtml(card.zh || '—');
       if (card.ipa) html += '<br>音標：<span class="ex-sentence__ipa">' + escapeHtml(card.ipa) + '</span>';
       html += '</div></div>';
 
       if (a.headline) html += '<div class="ex-headline">' + rich(a.headline) + '</div>';
 
-      if (a.items && a.items.length) {
-        html += '<section class="ex-section"><h3 class="ex-section__title">一、逐項對照表</h3>';
-        html += '<table class="ex-table"><thead><tr>'
-              + '<th>項目</th><th>正確版本</th><th>學生常犯錯誤</th><th>錯誤原因解析</th>'
+      // 一、句子結構與詞性對照表
+      if (a.structure && a.structure.length) {
+        html += '<section class="ex-section"><h3 class="ex-section__title">一、句子結構與詞性對照表</h3>';
+        html += '<table class="ex-table ex-table--pos"><thead><tr>'
+              + '<th>項目</th><th>單字/片語</th><th>詞性 (Part of Speech)</th><th>在句中的功能</th><th>正確/錯誤標示</th>'
               + '</tr></thead><tbody>';
-        a.items.forEach(it => {
+        a.structure.forEach(row => {
           html += '<tr>'
-            + '<td data-label="項目"><strong>' + rich(it.point || '') + '</strong></td>'
-            + '<td class="en ex-cell--ok" data-label="正確版本">' + rich('(O) ' + (it.ok || '')) + '</td>'
-            + '<td class="en ex-cell--bad" data-label="常見錯誤">' + rich('(X) ' + (it.bad || '')) + '</td>'
-            + '<td data-label="解析">' + rich(it.why || '')
-            + (it.exam ? '<br><span style="color:var(--text-muted)">📌 ' + rich(it.exam) + '</span>' : '')
-            + '</td></tr>';
+            + '<td data-label="項目">' + rich(row.role || '') + '</td>'
+            + '<td data-label="單字/片語">' + rich(row.token || '') + '</td>'
+            + '<td data-label="詞性">' + rich(row.pos || '') + '</td>'
+            + '<td data-label="在句中的功能">' + rich(row.func || '') + '</td>'
+            + '<td data-label="正確/錯誤標示">' + (row.mark === 'X'
+                ? '<span class="mark mark-X">(X)</span>'
+                : '<span class="mark mark-O">(O)</span>') + '</td>'
+            + '</tr>';
         });
         html += '</tbody></table></section>';
       }
 
-      if (a.examples && a.examples.length) {
-        html += '<section class="ex-section"><h3 class="ex-section__title">二、範例兩句（一對一錯）</h3><div class="ex-examples">';
-        a.examples.forEach(ex => {
-          const ok = ex.ok !== false;
-          html += '<div class="ex-example ' + (ok ? 'ex-example--ok' : 'ex-example--bad') + '">'
-            + '<div class="ex-example__text">' + rich((ok ? '(O) ' : '(X) ') + (ex.text || '')) + '</div>'
-            + '<div class="ex-example__note">' + rich(ex.note || '') + '</div>'
-            + '</div>';
+      // 二、學生常犯常見錯誤版本與解析
+      if (a.mistakes && a.mistakes.length) {
+        html += '<section class="ex-section"><h3 class="ex-section__title">二、學生常犯常見錯誤版本與解析</h3>';
+        a.mistakes.forEach((m, i) => {
+          html += '<div class="ex-mistake">';
+          html += '<div class="ex-mistake__title">錯誤類型 ' + (i + 1) + '：' + rich(m.title || '') + '</div>';
+          html += fieldRow('錯誤版本', marked(m.bad, 'X'));
+          html += fieldRow('正確版本', marked(m.ok, 'O'));
+          html += fieldRow('錯誤原因解析', rich(m.why || ''));
+          if (m.exOkText || m.exBadText) {
+            html += '<div class="ex-sublabel">範例對照</div>';
+            if (m.exOkText) {
+              html += '<div class="ex-exline">' + marked(m.exOkText, 'O')
+                + (m.exOkZh ? ' <span class="zh">（' + escapeHtml(m.exOkZh) + '）</span>' : '') + '</div>';
+            }
+            if (m.exBadText) {
+              html += '<div class="ex-exline">' + marked(m.exBadText, 'X')
+                + (m.exBadNote ? ' <span class="zh">（' + escapeHtml(m.exBadNote) + '）</span>' : '') + '</div>';
+            }
+          }
+          html += '</div>';
         });
-        html += '</div></section>';
+        html += '</section>';
       }
 
+      // 三、國中教育會考陷阱提醒
       if (a.traps && a.traps.length) {
-        html += '<section class="ex-section"><h3 class="ex-section__title">三、國中教育會考陷阱提醒</h3><ul class="ex-list">';
+        html += '<section class="ex-section"><h3 class="ex-section__title">三、國中教育會考陷阱提醒</h3>'
+              + '<ol class="ex-list ex-list--num">';
         a.traps.forEach(t => { html += '<li>' + rich(t) + '</li>'; });
-        html += '</ul></section>';
+        html += '</ol></section>';
       }
 
+      // 四、會考實戰建議
       if (a.strategy && a.strategy.length) {
-        html += '<section class="ex-section"><h3 class="ex-section__title">四、實戰建議</h3><ul class="ex-list">';
+        html += '<section class="ex-section"><h3 class="ex-section__title">四、會考實戰建議</h3>'
+              + '<ol class="ex-list ex-list--num">';
         a.strategy.forEach(t => { html += '<li>' + rich(t) + '</li>'; });
-        html += '</ul></section>';
+        html += '</ol></section>';
       }
 
       if (!entry.fromLibrary) {
-        html += '<p class="ex-empty">這一句還沒有老師寫好的完整解析，上方表格是 App 依句型自動產生的自我檢查提示。'
+        html += '<p class="ex-empty">這一句還沒有老師寫好的完整解析，上方是 App 依句型自動產生的檢查提示。'
               + '把內容補到專案的 data/analysis.js 並 git push，所有裝置就會共用同一份解析。</p>';
       }
 

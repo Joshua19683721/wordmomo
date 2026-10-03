@@ -1,1106 +1,1859 @@
-// data/analysis.js — 這一句的解析庫（老師寫好的內容，所有裝置共用）
+// data/analysis.js — 「解析這一句」的深度解析庫（所有裝置共用）
 //
 // key 必須和句庫 data/sentences.js 裡的英文「完全一致」（含標點、單複數、大小寫）
 //
-// 每一筆的格式：
+// 每筆的格式：
 //   {
-//     zh / ipa / headline : 基本資訊
-//     items    : [ { point, ok, bad, why, exam } ]   逐項對照：項目 / 正確版本 / 常見錯誤 / 原因
-//     examples : [ { ok:true, text, note }, { ok:false, text, note } ]  範例兩句（一對一錯）
-//     traps    : [ ... ]   國中教育會考陷阱提醒
-//     strategy : [ ... ]   實戰建議
+//     zh / ipa / headline          : 基本資訊
+//     structure : [ { role, token, pos, func, mark } ]
+//                  一、句子結構與詞性對照表：每個單字／片語一列
+//     mistakes  : [ { title, bad, ok, why, exOkText, exOkZh, exBadText, exBadNote } ]
+//                  二、學生常犯常見錯誤版本與解析（每句 4 個錯誤類型）
+//     traps     : [ ... ]          三、國中教育會考陷阱提醒
+//     strategy  : [ ... ]          四、會考實戰建議
 //   }
 //
-// App 會自動幫每個英文句子開頭加上 (O) 或 (X) 標記，不用自己寫。
-// 句庫裡沒有 key 的句子，App 會改用自動產生的自我檢查提示。
+// 撰寫規則：
+//   1. 所有英文句子的開頭都要有 (O) 正確 或 (X) 錯誤標記；App 會自動上色。
+//   2. 例句中想強調的重點片語，用 Markdown 的 **雙星號** 包起來。
+//   3. 句庫裡沒有對應 key 的句子，App 會改用自動產生的自我檢查提示。
 
 window.SENTENCE_ANALYSIS = {
   "This": {
     "zh": "這",
     "ipa": "/ðɪs/",
-    "headline": "This 不加 s，句首還要大寫 T",
-    "items": [
+    "headline": "指示代名詞 this：離你近、而且只有一個的那個",
+    "structure": [
       {
-        "point": "單複數",
-        "ok": "this bag",
-        "bad": "these bag",
-        "why": "this 本身就有單複數之別，不會變成加 s 的形式；要表達「這些」得換成 these，或把後面的名詞也變成複數。國中生常以為英文的複數一律靠加 s，連 this 這種指涉單一的字也想幫它加。",
-        "exam": "會考把 this／that 與 these／those 配對，或在句中挖空問 This 該配 is 還是 are。作答時先看後面的名詞是單數還是複數。"
+        "role": "指示代名詞（主詞）",
+        "token": "This",
+        "pos": "指示代名詞 (Demonstrative Pronoun)",
+        "func": "單獨使用、單獨當主詞時，this 指「離說話者較近的那一個（單數）」，例如指著眼前的東西說 this",
+        "mark": "O"
       },
       {
-        "point": "大小寫",
-        "ok": "This",
-        "bad": "this",
-        "why": "This 放在句子最前面時，T 一定要大寫；只有在句子中間當形容詞修飾名詞時才用小寫 this。國中生打字最常漏的就是這個大寫，寫完要檢查第一個字母。",
-        "exam": "會考單選常故意把句首的 This 改成小寫 this，讓你選正確版本。練習時先打大寫 T 再補 his，養成固定的按鍵順序。"
+        "role": "指示代名詞（受詞）",
+        "token": "this",
+        "pos": "指示代名詞 (Demonstrative Pronoun)",
+        "func": "放在動詞或介系詞後面時改當受詞，意思不變，例如 I like this.；它和 that（那個）正好是近與遠的對比",
+        "mark": "O"
       },
       {
-        "point": "be 動詞的搭配",
-        "ok": "This is my plan.",
-        "bad": "This are my plan.",
-        "why": "This 是單數，後面的 be 動詞要用 is；are 留給複數主詞。學生常受中文「這些」影響，看到「這」就直接配上 are。判斷只看一件事：主詞是單數還是複數。",
-        "exam": "會考選擇題常給 This is／This are 或 Those is／Those are 四個選項考你。把主詞圈起來，單數配 is、複數配 are，就能秒選。"
+        "role": "指示詞用法（後接名詞）",
+        "token": "this + 名詞",
+        "pos": "指示詞 (Demonstrative Determiner)",
+        "func": "後面接單數名詞時，this 不再單獨當主詞，而是修飾名詞，例如 this book、this school；後面的名詞一定要是單數",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "This is my new plan.",
-        "note": "This 當主詞，後面用 is 說明它是什麼，my new plan 是名詞片語。單數主詞配 is，這是最基本的 be 動詞句型。"
+        "title": "大小寫錯誤：把 this 當成專有名詞",
+        "bad": "(X) This is my desk. Put **This** on the chair.",
+        "ok": "(O) This is my desk. Put **this** on the chair.",
+        "why": "this 只是普通的指示代名詞，不是專有名詞。英文只有句子的第一個字（或專有名詞）要大寫，句子中間出現的 this 不論在句首、句中或句尾都必須小寫。台灣學生常因為中文沒有大小寫差別，或覺得「這個東西」像人名一樣特別，就把句中的 this 寫成 This，在會考答案卡上會直接被判錯。記法：整句只有開頭那個字有資格大寫。",
+        "exOkText": "(O) **This** is my dictionary. Please give **this** to Tom.",
+        "exOkZh": "這是我的字典。請把這個交給湯姆。",
+        "exBadText": "(X) **This** is my dictionary. Please give **This** to Tom.",
+        "exBadNote": "錯誤：this 不是專有名詞，句子中間必須寫小寫 this"
       },
       {
-        "ok": false,
-        "text": "This are my new plan.",
-        "note": "This 是單數，be 動詞要用 is，不能用 are。把 are 改成 is，寫成 (O) This is my new plan. 就正確了。"
+        "title": "this 與 it 混淆（中翻英最常見）",
+        "bad": "(X) I bought **this** yesterday at the bookstore.",
+        "ok": "(O) I bought **it** yesterday at the bookstore.",
+        "why": "中文「這」只有一個字，英文卻要分成 this 和 it：this 指離說話者近、看得見的單數東西；it 指對話中已知、但已經不在眼前的東西，或用在非特定的受詞。台灣學生最常見的毛病就是看到中文「這」就一律翻成 this，寫出 I bought this yesterday. 這種中文式英文。判斷法：問自己「對方看得到嗎？」看不到就用 it。",
+        "exOkText": "(O) **This** cake is great. I ate **it** at the party yesterday.",
+        "exOkZh": "這個蛋糕很好吃。我昨天在派對上把它吃掉了。",
+        "exBadText": "(X) **This** cake is great. I ate **this** at the party yesterday.",
+        "exBadNote": "錯誤：已經不在眼前的受詞要用 it，不能用 this"
+      },
+      {
+        "title": "單複數混淆：this 與 these 搞混",
+        "bad": "(X) **This** are my books.",
+        "ok": "(O) **These** are my books.",
+        "why": "this 是單數，these 是複數；that 是單數、those 也是複數。指眼前的兩本書一定要用 these，不能用 this 頂替，否則主詞變單數，後面的 be 動詞也會跟著錯（This are…）。台灣學生常因中文沒有 this／these 的數量差別，在指複數物品時直接用 this。口訣：一個用 this，一個以上用 these。",
+        "exOkText": "(O) **These** are my new friends from Grade 7.",
+        "exOkZh": "這些是我七年級的新朋友。",
+        "exBadText": "(X) **This** are my new friends from Grade 7.",
+        "exBadNote": "錯誤：指複數朋友要用 These，且後面 are 要一併改成 are"
+      },
+      {
+        "title": "省略 be 動詞（中翻英時把動詞漏掉）",
+        "bad": "(X) **This** my school.",
+        "ok": "(O) **This is** my school.",
+        "why": "英文的句子一定要有動詞，this 單獨使用時不能直接接名詞或形容詞。中文說「這本書」就結束，英文卻必須補上 be 動詞：This is my book.、This is a good idea.。台灣學生中翻英時常把 be 動詞省掉，寫成 This my book.，整句沒有動詞。記法：this 前面若沒有動詞，後面一定要用 is。",
+        "exOkText": "(O) **This is** a good idea for our class trip.",
+        "exOkZh": "這是我們班級旅行的好主意。",
+        "exBadText": "(X) **This** a good idea for our class trip.",
+        "exBadNote": "錯誤：缺 be 動詞，應為 This is a good idea…"
       }
     ],
     "traps": [
-      "this 沒有加 s 的形式，它和 those 本身就分好了單複數。",
-      "This 放在句首要大寫 T，寫在句中修飾名詞時才用小寫。",
-      "單數的 This 配 is，複數的 these 配 are，這組對應不要記混。"
+      "近指與遠指的對比陷阱：this／these 指離說話者近、看得到的人事物；that／those 指較遠或不在眼前的。會考圖文題與對話題會故意問 this 指的是哪一個，要看圖或讀情境再作答。",
+      "單複數指示詞陷阱：this／that 只能指單數，these／those 才是複數。題目一旦把 this 換成 these，後面的 be 動詞和實質動詞都要跟著改成複數形式。",
+      "拼寫與位置陷阱：this 的 s 不能漏（寫成 thi 錯），th 是 this／that 專用、the 才是定冠詞；this 後面接名詞時，那個名詞必須是單數。"
     ],
     "strategy": [
-      "先寫大寫 T 再補 his，把 This 當成一個按鍵組合來練。",
-      "寫完 This 就順手檢查後面是 is 還是 are，錯了立刻改。",
-      "把 this／that／these／those 抄成一張四格對照表，每天唸一次。"
+      "指東西時先做分類：單數還是複數？近的還是遠的？單數近 → this，複數近 → these，單數遠 → that，複數遠 → those。",
+      "看到 this 後面直接接名詞，就檢查兩件事：名詞是單數嗎？前面還有沒有再加 a／the／my？",
+      "翻譯時把中文的「這」拆成三層：眼前的（this）、對話中已知的（it）、泛指的（one 或省略），不要全部翻成 this。",
+      "朗讀練習：This is my seat.／I like this one.／These are my friends.，把 this 的單數感與 these 的複數感記在耳朵裡。"
     ]
   },
   "This is": {
     "zh": "這是",
     "ipa": "/ðɪs ɪz/",
-    "headline": "This 後面的 is 不能省，也不能用 are",
-    "items": [
+    "headline": "最小的判斷句型：主詞 this 加 be 動詞 is",
+    "structure": [
       {
-        "point": "be 動詞",
-        "ok": "This is a plan.",
-        "bad": "This a plan.",
-        "why": "英文的 be 動詞（am／is／are）在一般句子中不能省略，This is 後面還要有受詞才完整。省略 be 只出現在少數慣用句型裡，考試一律照完整形式寫。",
-        "exam": "會考會在句子中挖掉 be 動詞，或用選項考 (X) This a plan 與 (O) This is a plan。判斷原則：主詞後面沒有動詞，句子就不完整。"
+        "role": "主詞",
+        "token": "This",
+        "pos": "指示代名詞 (Demonstrative Pronoun)",
+        "func": "單獨當主詞，指離說話者較近的那一個（單數）東西",
+        "mark": "O"
       },
       {
-        "point": "is / are 的選擇",
-        "ok": "This is my bag.",
-        "bad": "This are my bag.",
-        "why": "This 是單數，be 動詞必須用 is；are 留給複數主詞，例如 plans 或 those。國中生常受中文「這些」影響，看到「這」就直接寫 are。",
-        "exam": "會考題目給 This 或 Those 讓你選 is／are，或在閱讀測驗中出現 This is… 的句子。選之前先問自己：這一個，還是這些？"
+        "role": "be 動詞",
+        "token": "is",
+        "pos": "動詞 (Verb) — be 動詞",
+        "func": "單數主詞專用的 be 動詞，緊接在主詞後面，後面接名詞或名詞片語（This is my bag.）",
+        "mark": "O"
       },
       {
-        "point": "名詞前的限定詞",
-        "ok": "This is a plan.",
-        "bad": "This is plan.",
-        "why": "is 後面接單數可數名詞時，前面一定要有 a／an 或 my、your 這類限定詞，不能光禿禿只寫名詞。中文可以省略，英文卻不能空掉。",
-        "exam": "閱讀測驗與單選常出現缺冠詞的句子版本。名詞前少一個限定詞是台灣學生最常見的錯誤之一，寫完要自己唸一次。"
+        "role": "系動詞片語",
+        "token": "This is",
+        "pos": "主詞 + be 動詞 (Subject + Linking Verb)",
+        "func": "英文最小的判斷句型，用來指認眼前的東西，後面絕對不能空著，一定要接東西",
+        "mark": "O"
+      },
+      {
+        "role": "縮寫限制",
+        "token": "This is（不縮寫）",
+        "pos": "書寫規則 (Writing Rule)",
+        "func": "this is 不能寫成 This's；正式書寫、會考作答與打字練習都要完整寫出兩個字",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "This is a good idea for the trip.",
-        "note": "This is 後面依序接形容詞 a good，再接名詞 idea。be 動詞 is 不能省，單數名詞前也要有 a，兩個規則都守住了。"
+        "title": "縮寫誤用：寫成 This's",
+        "bad": "(X) **This's** my new bag.",
+        "ok": "(O) **This is** my new bag.",
+        "why": "this is 沒有縮寫成 This's 的用法。英文縮寫只針對 be 動詞或助動詞本身，指示代名詞加上 be 動詞必須完整寫出。台灣學生常看到 Good morning's 這類寫法就照樣類推，寫出 This's my bag.，在會考作文與改錯題都算錯。記法：看到 this，後面一律把 is 完整寫出來，句子短也不縮寫。",
+        "exOkText": "(O) **This is** the answer to the question.",
+        "exOkZh": "這就是那個問題的答案。",
+        "exBadText": "(X) **This's** the answer to the question.",
+        "exBadNote": "錯誤：this is 不可縮寫成 This's"
       },
       {
-        "ok": false,
-        "text": "This a good idea for the trip.",
-        "note": "少了 be 動詞 is。中文可以說「這是好主意」，英文卻一定要有動詞，補上 is 才完整。"
+        "title": "be 動詞與主詞單複數不一致（is / are）",
+        "bad": "(X) These **is** my new classmate.",
+        "ok": "(O) These **are** my new classmates.",
+        "why": "be 動詞要跟著主詞變化：單數主詞用 is，複數主詞用 are。this 是單數所以配 is；一旦主詞換成 these（複數），is 就必須改成 are。台灣學生常受中文「這些都是……」的影響，主詞已經變成複數卻仍然用 is。檢查法：寫完句子先把主詞圈起來，看它是 this 還是 these，再決定用 is 還是 are。",
+        "exOkText": "(O) **These are** the books I borrowed from the library.",
+        "exOkZh": "這些是我從圖書館借的書。",
+        "exBadText": "(X) **These is** the books I borrowed from the library.",
+        "exBadNote": "錯誤：主詞 these 是複數，be 動詞應為 are"
+      },
+      {
+        "title": "冠詞／所有格與 this 疊加使用",
+        "bad": "(X) **This is a my** school bag.",
+        "ok": "(O) **This is my** school bag.",
+        "why": "this 後面接名詞時，a、an、the、my 這類詞只能擇一使用，不能疊加。正確寫法是 This is my school bag. 或 This is the school bag.；台灣學生常寫成 This is a my school bag.，把兩個指示系統一起用，句子就多出一個多餘的詞。口訣：前面已經有 this，後面就不用再加一次冠詞或所有格。",
+        "exOkText": "(O) **This is the** library near my home.",
+        "exOkZh": "這就是我家附近的圖書館。",
+        "exBadText": "(X) **This is a the** library near my home.",
+        "exBadNote": "錯誤：this 與 the／a 不能同時使用，擇一即可"
+      },
+      {
+        "title": "問句語序錯誤（把 is 留在原位）",
+        "bad": "(X) **This is** your school bag?",
+        "ok": "(O) **Is this** your school bag?",
+        "why": "This is … 是陳述句（直述句）；問句必須把 be 動詞提到句首。問「這是你的書包嗎？」英文是 Is this your bag?，不是 This is your bag?。台灣學生受中文「這是你書包嗎？」的語序影響，習慣把 is 留在原位，整句變成陳述句再加問號，會考選擇題常因此選錯。口訣：問句開頭是 Is／Are／Do／Did，不會是 This。",
+        "exOkText": "(O) **Is this** the right bus stop?",
+        "exOkZh": "這是正確的公車站嗎？",
+        "exBadText": "(X) **This is** the right bus stop?",
+        "exBadNote": "錯誤：問句要把 is 提到句首，寫成 Is this…?"
       }
     ],
     "traps": [
-      "This is 是一整組，主詞與 be 動詞都不能拆開，後面還要接得上名詞。",
-      "This 配 is、These 配 are，看的是單複數，不是中文口語的習慣。",
-      "be 動詞省略只出現在慣用句（例如 Here you are.），一般句子省就是錯。"
+      "be 動詞呼應陷阱：this → is，these → are。題目故意把主詞從 this 換成 these 時，is 一定要跟著改成 are，只換一半的選項就是陷阱。",
+      "縮寫陷阱：this is 不能縮寫成 This's。會考常出現 This's a good idea. 當錯誤選項，正確選項永遠是完整寫出的 this is。",
+      "問句語序陷阱：會考把 This is your bag?（錯）與 Is this your bag?（對）並列，答案差別只在 is 有沒有被搬到句首。"
     ],
     "strategy": [
-      "把 This is 當成三個字的固定塊一次打完，不要中斷。",
-      "打完之後停半秒，檢查後面是否接得上名詞或名詞片語。",
-      "練習用「主詞—be—名詞」三格填空，每天默寫五個句子。"
+      "記住這是「主詞 + be 動詞」的最小句型，後面缺東西時要自己補上名詞：This is + 名詞／名詞片語。",
+      "寫完做兩次檢查：① 這句有沒有 be 動詞（is）？② be 動詞跟主詞的單複數一致嗎？",
+      "問句練習：把 This is my seat. 改寫成 Is this my seat?，習慣讓 is 站到最前面。",
+      "朗讀完整句子五次：This is my new school.／This is a good idea.，建立口語節奏與單複數語感。"
     ]
   },
   "not planned": {
     "zh": "未預先計劃的",
     "ipa": "/nɑːt plænd/",
-    "headline": "be 動詞後接過去分詞，別加 to 或 ing",
-    "items": [
+    "headline": "否定詞 not 加過去分詞 planned：沒有被事先安排",
+    "structure": [
       {
-        "point": "過去分詞的拼字",
-        "ok": "not planned",
-        "bad": "not planed",
-        "why": "plan 是重讀音節且以單一子音結尾，加 -ed 時要雙寫 n 變成 planned，這條規則同時管過去式與過去分詞。台灣學生最常只加一個 e，寫成 planed。",
-        "exam": "會考在動詞填空題放 planned、planed、planning 讓你圈錯。plan、planned、planning 三態都要會拼，考前默寫一次最保險。"
+        "role": "否定詞",
+        "token": "not",
+        "pos": "否定副詞 (Negative Adverb)",
+        "func": "放在 be 動詞或助動詞後面（或一般動詞前）表示否定，擺在 planned 前面否定整個片語",
+        "mark": "O"
       },
       {
-        "point": "不定詞 to",
-        "ok": "not planned",
-        "bad": "not to plan",
-        "why": "be 動詞後面可以接 V-ing（進行式）或過去分詞（被動），但不能接 to 加動詞原形。寫成 not to plan 意思變成「不打算去計畫」，與原意完全不同。",
-        "exam": "會考在 be 動詞後方挖空，選項常放 planned、planning、to plan。判斷關鍵：中文若出現「的」字，多半對應被動的過去分詞。"
+        "role": "過去分詞（表語）",
+        "token": "planned",
+        "pos": "動詞過去分詞 (Past Participle) — 此處作形容詞",
+        "func": "plan 加 -ed，擺在 be 動詞後面當表語，含「被……安排的」意思，強調事情本身沒有事先安排",
+        "mark": "O"
       },
       {
-        "point": "被動與進行式的差別",
-        "ok": "not planned",
-        "bad": "not planning",
-        "why": "planned 是過去分詞，構成被動，表示「沒有被事先安排好」；planning 是現在分詞，變成「現在沒有在被安排」。中文只寫「未預先計劃的」時，預設是被動。",
-        "exam": "閱讀測驗常靠 -ing 與 -ed 的差別出題，看句子談的是當下動作還是已完成的狀態。寫作時先問：這件事有沒有被安排？"
-      },
-      {
-        "point": "否定詞的位置",
-        "ok": "not planned",
-        "bad": "planned not",
-        "why": "英文的否定詞 not 固定放在 be 動詞後面，不能照中文「未……的」把否定搬到前面或句尾。一般結構是 be 動詞 + not + 分詞。",
-        "exam": "會考字詞填空常把 not 放在題目預設位置，看你會不會自己校正。檢查口訣：唸起來卡住，就把 not 移回 be 動詞後面。"
+        "role": "否定片語",
+        "token": "not planned",
+        "pos": "否定詞 + 過去分詞 (Negative Participle Phrase)",
+        "func": "整個片語只能修飾名詞或放在 be 動詞後面當表語，不能自己當主要動詞用",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "The concert is not planned yet.",
-        "note": "be 動詞 is 後面先放 not，再接過去分詞 planned，表示「還沒被安排好」。yet 放在句尾加強到目前為止的語氣，這個位置很常考。"
+        "title": "否定詞 not 的位置放錯",
+        "bad": "(X) The trip is planned **not**.",
+        "ok": "(O) The trip is **not planned**.",
+        "why": "not 是否定詞，位置要放對：必須緊接在 be 動詞或助動詞後面（is not、did not），或放在一般動詞前面（do not plan）。所以「沒有被計劃」要寫 is not planned，不能寫 planned not 或 not is planned。台灣學生常把中文「不」的位置直接搬過去。檢查法：先找 be 動詞，not 一定在它後面。",
+        "exOkText": "(O) The school trip is **not planned** yet.",
+        "exOkZh": "學校畢業旅行還沒有安排好。",
+        "exBadText": "(X) The school trip is planned **not** yet.",
+        "exBadNote": "錯誤：not 要緊接在 is 後面，寫成 is not planned"
       },
       {
-        "ok": false,
-        "text": "The concert is not planning.",
-        "note": "planning 是進行式，變成「這場演唱會現在沒有在被安排」。要表達沒有被預先安排好，必須用過去分詞 planned。"
+        "title": "漏加過去分詞字尾 -ed",
+        "bad": "(X) The activity is not **plan**.",
+        "ok": "(O) The activity is not **planned**.",
+        "why": "not 後面接過去分詞 planned（plan 加 -ed），表示「某件事沒有被事先安排」。只寫 not plan 就變成「沒有打算」，意思完全跑掉。台灣學生常把 plan、planned、planning 三個形狀混用，短篇填空裡尤其容易漏寫 -ed。口訣：be 動詞後接過去分詞，plan 的過去分詞是 planned，讀音 /plænd/。",
+        "exOkText": "(O) The party was not **planned** in advance.",
+        "exOkZh": "這場派對不是事先安排好的。",
+        "exBadText": "(X) The party was not **plan** in advance.",
+        "exBadNote": "錯誤：漏了過去分詞字尾 -ed，應為 planned"
+      },
+      {
+        "title": "把過去分詞誤當主要動詞用",
+        "bad": "(X) They **not planned** the trip last week.",
+        "ok": "(O) They **did not plan** the trip last week.",
+        "why": "planned 是過去分詞，本身不能單獨當主要動詞。否定某個人「沒有計畫」要用原形，前面加助動詞：They did not plan the trip.。台灣學生常寫成 They not planned the trip.，這句既沒有助動詞也沒有原形動詞，結構不完整。判斷法：有 be 動詞就接分詞，沒有就接原形並加 did／will。",
+        "exOkText": "(O) We **did not plan** to go to the museum.",
+        "exOkZh": "我們沒有計畫要去博物館。",
+        "exBadText": "(X) We **not planned** to go to the museum.",
+        "exBadNote": "錯誤：分詞不能當主要動詞，要改為 did not plan"
+      },
+      {
+        "title": "主動與被動的語意混淆（not planned / not planning）",
+        "bad": "(X) I am not **planning** to go, so the trip is not **planned**.",
+        "ok": "(O) The trip is not **planned** by us yet.",
+        "why": "not planned 是被動用法，強調「事情本身沒有被安排」；not planning 是主動用法，強調「人沒有在計畫」。兩者主詞不同：This is not planned.（這件事沒被安排）／I am not planning to go.（我沒打算要去）。台灣學生常把兩者互換，閱讀測驗就會誤判誰是動作執行者。",
+        "exOkText": "(O) The camping trip is not **planned**, so we must change the date.",
+        "exOkZh": "露營行程還沒安排好，所以我們必須改日期。",
+        "exBadText": "(X) I am not **planned** to go on the camping trip.",
+        "exBadNote": "錯誤：人不能用 planned 當主動，要寫 I am not planning to go"
       }
     ],
     "traps": [
-      "plan 要雙寫 n，planned 與 planning 都一樣，只有 -ed 與 -ing 會多一個 n。",
-      "be 後面接 planned（被動）還是 planning（進行中），語意差很多，不能只看中文。",
-      "not 要放在 be 動詞後面，寫成 planned not 順序就是錯的。"
+      "否定位置陷阱：not 一定在 be 動詞或助動詞之後。選項中出現 planned not 這種位置，不用讀完就知道是錯的。",
+      "分詞字尾陷阱：not 後面接過去分詞 planned（-ed），不是原形 plan。會考短篇填空常在這個字尾上挖空。",
+      "主動與被動陷阱：planned 是被動的（事情沒有被安排），換成 planning 就變成主動（人沒有在計畫），閱讀測驗常考這組差異。"
     ],
     "strategy": [
-      "把 plan、planned、planning 三態寫成三行，每天唸一次並默寫。",
-      "看到中文「未……的」就對應 be 加過去分詞，看到「正在」才用 be 加 -ing。",
-      "打字時 planned 整個字一次輸入，不要中斷成 plan 加 ed。"
+      "記住公式：be 動詞 + not + 過去分詞（is not planned、was not planned、isn't planned）。",
+      "看到 plan 立刻分三個形：plan（原形）／planned（過去分詞，be 動詞後用）／planning（現在分詞，be 動詞後表進行式）。",
+      "寫句子時先確定有沒有 be 動詞：有 → 後面接分詞；沒有 → 改用原形加助動詞（They did not plan…）。",
+      "朗讀 This is not planned. 與 They did not plan it. 各三遍，用耳朵分辨「沒有被安排」和「沒有去安排」的差別。"
     ]
   },
   "This is not planned": {
     "zh": "這不是預先計劃好的",
     "ipa": "/ðɪs ɪz nɑːt plænd/",
-    "headline": "否定詞固定夾在 be 動詞後面",
-    "items": [
+    "headline": "主詞 + be 動詞 + not + 過去分詞，四段語序不能調換",
+    "structure": [
       {
-        "point": "否定句語序",
-        "ok": "This is not planned.",
-        "bad": "This is planned not.",
-        "why": "英文否定句的固定順序是主詞加 be 動詞加 not 加動詞，not 一定要緊跟在 be 動詞後面。照中文語序把否定搬到最後，讀起來會斷成兩截。",
-        "exam": "會考在句子中給空格，問 not 要放哪裡；或拿兩個版本讓你選通順的那個。口訣是 be 動詞後面立刻接 not。"
+        "role": "主詞",
+        "token": "This",
+        "pos": "指示代名詞 (Demonstrative Pronoun)",
+        "func": "單獨當主詞，指正在談的那一件事（單數），放在句首要大寫",
+        "mark": "O"
       },
       {
-        "point": "be 動詞不可省略",
-        "ok": "This is not planned.",
-        "bad": "This not planned.",
-        "why": "否定句一樣需要 be 動詞，This 後面不能直接跳到 not。少了 is 的句子不完整，會考常把這種版本當成錯誤選項讓你挑出來。",
-        "exam": "寫作題會在這裡出題。改錯時先檢查三個骨架字：主詞 This、be 動詞 is、動詞 planned，缺任何一個都不算完整。"
+        "role": "be 動詞",
+        "token": "is",
+        "pos": "動詞 (Verb) — be 動詞",
+        "func": "單數主詞專用的 be 動詞，連接主詞與後面的表語，不能省略",
+        "mark": "O"
       },
       {
-        "point": "名詞前的限定詞",
-        "ok": "This is not a plan.",
-        "bad": "This is not plan.",
-        "why": "is 後面接單數可數名詞 plan，前面一定要有 a／an 或 my、your 這類限定詞。not 只負責否定，不會取代限定詞的功能。",
-        "exam": "會考選擇題常把冠詞拿掉做成錯句，或在 This is 後方挖空問該填 a／an／my。判斷時先看名詞可不可數。"
+        "role": "否定詞",
+        "token": "not",
+        "pos": "否定副詞 (Negative Adverb)",
+        "func": "緊接在 be 動詞 is 的後面，否定整個句子，位置不能移動",
+        "mark": "O"
+      },
+      {
+        "role": "過去分詞（表語）",
+        "token": "planned",
+        "pos": "動詞過去分詞 (Past Participle) — 此處作表語",
+        "func": "plan 加 -ed，放在 be 動詞後面當表語，表示「（某件事）被事先安排的」",
+        "mark": "O"
+      },
+      {
+        "role": "整句結構",
+        "token": "This is not planned",
+        "pos": "否定系動詞句 (Negative Linking-verb Sentence)",
+        "func": "主詞 + be 動詞 + not + 過去分詞，四個部分缺一不可，語序不可調換",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "This is not planned in our schedule.",
-        "note": "骨架是 This、is、not、planned 四個關鍵詞，再用 in our schedule 補充說明。否定詞緊接 be 動詞，順序完全正確。"
+        "title": "否定詞 not 的語序錯誤（丟到句尾）",
+        "bad": "(X) This is planned **not**.",
+        "ok": "(O) This is **not planned**.",
+        "why": "否定句的固定語序是「主詞 + be 動詞 + not + 其他」，not 一定要緊跟在 is 後面。This is not planned. 才是正確順序；寫成 This is planned not. 等於把 not 丟到句尾，讀起來像被拆開的補語，會考作文、選詞題與改錯題都算錯。口訣：不管中文的「不」說在哪裡，英文的 not 一律跟在 be 動詞後面。",
+        "exOkText": "(O) The surprise party for Tom **is not planned**.",
+        "exOkZh": "給湯姆的驚喜派對還沒安排好。",
+        "exBadText": "(X) The surprise party for Tom **is planned not**.",
+        "exBadNote": "錯誤：not 必須緊接在 is 後面，寫成 is not planned"
       },
       {
-        "ok": false,
-        "text": "This is not plan.",
-        "note": "錯在 plan 前面少了限定詞 a。not 不會替你完成冠詞的功能，補上 a 之後寫成 (O) This is not a plan. 才是正確句子。"
+        "title": "省略 be 動詞（整句沒有動詞）",
+        "bad": "(X) This **not planned**.",
+        "ok": "(O) This **is not planned**.",
+        "why": "英文系動詞句不能省略 be 動詞。This is not planned. 中的 is 必須留著，因為它連接主詞 this 與後面的分詞 planned。台灣學生有兩種省略：一是把 is 省掉寫成 This not planned.；二是受中文影響，把 not planned 當成完整句。判斷法：this 後面接分詞，中間一定要有 is 或 was。",
+        "exOkText": "(O) This **is not planned** for Friday afternoon.",
+        "exOkZh": "這件事還沒有安排在星期五下午。",
+        "exBadText": "(X) This **not planned** for Friday afternoon.",
+        "exBadNote": "錯誤：缺 be 動詞，應為 This is not planned…"
+      },
+      {
+        "title": "過去分詞形式與拼寫錯誤",
+        "bad": "(X) This is not **planed**.",
+        "ok": "(O) This is not **planned**.",
+        "why": "not 後面一定要用過去分詞 planned，而 planned 的拼字是 plan 加 -ed，不能寫成 plan，也不能寫成 planed。plan 本身以 n 結尾，加 -ed 時 n 不重複，字母一錯整個詞就不存在了。這類錯誤在會考單字題、克漏字測驗與打字練習都常出現。記法：plan 加 -ed 只加一個 d，讀音 /plænd/，尾音是 /nd/。",
+        "exOkText": "(O) The new library is not **planned** to open this year.",
+        "exOkZh": "新圖書館今年不預計完工。",
+        "exBadText": "(X) The new library is not **planed** to open this year.",
+        "exBadNote": "錯誤：拼字錯誤，plan 加 -ed 不重複 n，應為 planned"
+      },
+      {
+        "title": "否定 be 動詞誤用 don't",
+        "bad": "(X) This don't planned.",
+        "ok": "(O) This **is not** planned.",
+        "why": "否定 be 動詞時要用 is not，不能用 don't。don't 是用來否定實質動詞的：This isn't planned. 才是正確；寫成 This don't planned. 同時犯了兩個錯——don't 不能否定 be 動詞，而且 don't 後面接的是原形動詞。口訣：句子裡有 is，否定就找 not；看到 is 就不找 don't。",
+        "exOkText": "(O) The exchange activity **is not planned** yet.",
+        "exOkZh": "交流活動還沒有安排。",
+        "exBadText": "(X) The exchange activity **don't planned** yet.",
+        "exBadNote": "錯誤：否定 be 動詞要用 is not，don't 後面也不能接分詞"
       }
     ],
     "traps": [
-      "not 後面接 be 動詞或動詞原形，接單數名詞時一定要有 a 或 my。",
-      "is not 常縮寫成 isn't，口說與會考寫作題都要會寫。",
-      "整句順序是 This、is、not、planned，打字時照這四個關鍵詞最不容易出錯。"
+      "否定語序陷阱：not 必須緊跟 is。選項中 This is planned not. 一定是錯的，考試常把這句當成干擾項。",
+      "be 動詞省略陷阱：中文可以說「這沒計劃」，英文不能省掉 is。This not planned. 沒有動詞，一讀就知道錯。",
+      "否定方式陷阱：否定 be 動詞用 is not，寫成 This don't planned. 會同時錯在否定方式與動詞形式，兩個錯誤疊在一起。"
     ],
     "strategy": [
-      "先用骨架 This _ _ planned 填空，再依序填 is 與 not，最後才補細節。",
-      "唸句子時在 is 與 not 之間停一下，節奏對了字序就不會錯。",
-      "打完立刻檢查 not 前面是不是 be 動詞、後面是不是動詞原形或分詞。"
+      "套公式：This／That（主詞，單數）+ is（be 動詞）+ not（否定）+ planned（過去分詞）。",
+      "寫完照順序唸一遍：主詞 → be 動詞 → not → 分詞，任何一環缺了就回去補。",
+      "特別練一次 is not 與 isn't 的差別：正式書寫用 is not，兩者意思完全相同，寫錯字形最容易被扣分。",
+      "用中文對照檢查：中文說「這不是預先計劃好的」時，英文的 not 一定要卡在 is 後面、planned 前面。"
     ]
   },
   "Oh no, this is not planned": {
     "zh": "噢不，這完全不在計劃中",
     "ipa": "/əʊ nəʊ, ðɪs ɪz nɑːt plænd/",
-    "headline": "Oh no 後要加逗號，後句用小寫",
-    "items": [
+    "headline": "感嘆語 Oh no 先開口，逗號後 this 要大寫",
+    "structure": [
       {
-        "point": "標點符號",
-        "ok": "Oh no, this is not planned.",
-        "bad": "Oh no this is not planned.",
-        "why": "Oh no 是感嘆語，中文寫「噢不，……」用逗號，英文也一樣要加逗號。少了逗號雖然還讀得懂，仍算標點錯誤，而且逗號後要空一格。",
-        "exam": "會考寫作或改錯題會檢查感嘆詞後的標點。練習時把 Oh no, 當成一個固定組合先打，之後再接句子本體，就不容易漏。"
+        "role": "感嘆語",
+        "token": "Oh no",
+        "pos": "感嘆語 (Interjection)",
+        "func": "表示自己突然發現壞消息時的驚訝與沮喪，是一個片語，中間有空格",
+        "mark": "O"
       },
       {
-        "point": "逗號後的大小寫",
-        "ok": "Oh no, this is not planned.",
-        "bad": "Oh no, This is not planned.",
-        "why": "用逗號連接的兩部分屬於同一個句子，逗號後的第一個字要小寫；只有句號、問號、驚嘆號之後才需要大寫。國中生常以為有標點就一定要大寫。",
-        "exam": "會考選擇題會把逗號後改成大寫，讓你選出錯誤版本。判斷口訣：前面是逗號就用小寫，前面是句號才用大寫。"
+        "role": "標點",
+        "token": ",",
+        "pos": "標點 (Punctuation)",
+        "func": "逗號把感嘆語和後面的主詞句分開，逗號後的第一個字 this 必須大寫成 This",
+        "mark": "O"
       },
       {
-        "point": "後續句子的完整性",
-        "ok": "Oh no, this is not planned.",
-        "bad": "Oh no, is not planned.",
-        "why": "感嘆詞後面接的是一個完整子句，必須保留主詞 This。只留 be 動詞以後的殘句，讀起來像筆記不像英文句子，寫作題一定判錯。",
-        "exam": "閱讀測驗常把這樣的殘句拿來當錯誤選項。檢查方法很簡單：唸一次，發現沒有主詞就代表句子不完整。"
+        "role": "主詞",
+        "token": "this",
+        "pos": "指示代名詞 (Demonstrative Pronoun)",
+        "func": "指代前面正在談的那件事（單數），放在 be 動詞前當主詞",
+        "mark": "O"
+      },
+      {
+        "role": "be 動詞",
+        "token": "is",
+        "pos": "動詞 (Verb) — be 動詞",
+        "func": "單數主詞專用的 be 動詞，連接主詞與後面的表語，不可省略",
+        "mark": "O"
+      },
+      {
+        "role": "否定詞",
+        "token": "not",
+        "pos": "否定副詞 (Negative Adverb)",
+        "func": "緊接在 is 後面，否定整件事「不在計畫中」",
+        "mark": "O"
+      },
+      {
+        "role": "過去分詞（表語）",
+        "token": "planned",
+        "pos": "動詞過去分詞 (Past Participle)",
+        "func": "plan 加 -ed，擺在 be 動詞後當表語，表示「被事先安排好的」",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "Oh no, the party is not planned yet.",
-        "note": "先寫感嘆詞 Oh no 和逗號，再接完整否定子句。逗號後用小寫 the party 當主詞，be 動詞 is 加 not，最後接被動分詞，三個規則都正確。"
+        "title": "感嘆語使用場合錯誤（把 Oh no 當問候語）",
+        "bad": "(X) **Hello no**, this is not planned.",
+        "ok": "(O) **Oh no**, this is not planned.",
+        "why": "Oh no 是感嘆語，只用在自己突然發現壞消息、意外或沮喪的瞬間，例如發現考卷拿錯、活動臨時取消。打招呼、問候、呼喚對方都不能用 Oh no，應該用 Hello、Hi。台灣學生常把 Oh 當成萬用的「啊」，在句子開頭亂加，形成不倫不類的句子。判斷法：這句是在「打招呼」，還是在「聽到壞消息」？",
+        "exOkText": "(O) **Oh no!** I left my English notebook at home.",
+        "exOkZh": "噢不！我把英文筆記本落在家裡了。",
+        "exBadText": "(X) **Hello no!** I left my English notebook at home.",
+        "exBadNote": "錯誤：Oh no 是感嘆語，不能當問候語使用"
       },
       {
-        "ok": false,
-        "text": "Oh no the party is not planned yet.",
-        "note": "少了逗號，感嘆詞和後面的句子黏在一起。感嘆詞後有停頓就要用逗號隔開，補上逗號並空一格才是正確寫法。"
+        "title": "No 與 Oh no 的功能差異",
+        "bad": "(X) **No**, this is not planned.",
+        "ok": "(O) **Oh no**, this is not planned.",
+        "why": "No 與 Oh no 的功能不同：No 開頭是「不對／不是那樣」，用來反對或否定別人剛說的話；Oh no 是「啊不好了」，用來表達自己發現壞消息的感嘆，兩者不能互換。所以想說「噢不，這件事沒被安排」時要用 Oh no；只寫 No, this is not planned. 會讓讀者以為你在反駁對方的說法。會考情境題常考這個差別。",
+        "exOkText": "(O) **Oh no**, we can't join the baseball game tomorrow.",
+        "exOkZh": "噢不，我們明天沒辦法參加棒球比賽。",
+        "exBadText": "(X) **No**, we can't join the baseball game tomorrow.",
+        "exBadNote": "錯誤：這是感嘆的壞消息，不是反駁別人，應寫 Oh no"
+      },
+      {
+        "title": "逗號後的 this 忘記大寫",
+        "bad": "(X) Oh no, **this** is not planned.",
+        "ok": "(O) Oh no, **This** is not planned.",
+        "why": "逗號代表前面的句子結束了，後面新子句的第一個字一定要大寫。Oh no 後面加了逗號，後面的 this 就是新子句的開頭，必須寫成 This。台灣學生常忘記這個規則，寫出 Oh no, this is not planned.，看起來像是一個字不小心拼錯。口訣：只要看到逗號，就檢查逗號後面那個字的字首有沒有大寫。",
+        "exOkText": "(O) **Oh no, This** is not what I expected at all.",
+        "exOkZh": "噢不，這完全不是我預期的。",
+        "exBadText": "(X) **Oh no, this** is not what I expected at all.",
+        "exBadNote": "錯誤：逗號後是新的子句，this 的字首必須大寫成 This"
+      },
+      {
+        "title": "語意理解錯誤：not 否定的是哪一個字",
+        "bad": "(X) Oh no, this is not planned.（誤讀成：這個人沒有計畫）",
+        "ok": "(O) Oh no, this is not planned.（讀成：這件事不在計畫中）",
+        "why": "閱讀測驗中 this is not planned 的重點是「這件事事先沒有被安排」，not 否定的是 planned 這個過去分詞，不是 is，也不是某個人。台灣學生常誤讀成「這個人沒有計畫」或「這件事以後也不會被安排」，於是把句子的主體抓錯。作者想強調的是「一切都不在計畫中」。作答前先圈出 not，再看它否定的是哪一個字。",
+        "exOkText": "(O) Oh no, this is not planned. We need another way.",
+        "exOkZh": "噢不，這件事不在計畫中。我們需要另一個方法。",
+        "exBadText": "(X) Oh no, this is not planned.（誤讀：這件事以後也不會被安排）",
+        "exBadNote": "錯誤：not 否定的是「事先被安排」，不是「以後會不會安排」"
       }
     ],
     "traps": [
-      "感嘆詞 Oh no 後面要有逗號，而且逗號後要空一格。",
-      "逗號後接一般子句時用小寫，只有句號之後才需要大寫。",
-      "關鍵詞順序是 Oh no、This、is、not、planned，漏掉任何一個都算錯。"
+      "感嘆語陷阱：Oh no 只在自己聽到壞消息時出現，問候語一定是 Hello／Hi；把兩者混用是會考最常見的語氣誤判。",
+      "標點陷阱：Oh no 後面要加逗號，逗號後面的 this 要大寫成 This，標點與大小寫兩個檢查缺一不可。",
+      "閱讀陷阱：No 和 Oh no 意思不同；this is not planned 談的是「這件事不在計畫中」，不是「某個人沒有計畫」，抓錯主體就會答錯題。"
     ],
     "strategy": [
-      "把 Oh no, 視為一個固定按鍵組合，先打感嘆詞再補逗號。",
-      "唸的時候在 Oh no 之後自然停一下，就會記得加逗號。",
-      "打完依序檢查三件事：逗號有沒有、大寫對不對、not 在不在 be 動詞後面。"
+      "先判斷語氣：自己在感嘆壞消息 → 用 Oh no；否定或反駁對方的話 → 用 No。",
+      "寫完含 Oh no 的句子，做標點檢查：逗號有了嗎？逗號後的第一個字大寫了嗎？",
+      "看到 this is not planned 就畫箭頭指向前面談的那件事，提醒自己它指「這件事」而不是「這個人」。",
+      "完整朗讀：Oh no, this is not planned.，用唸的語氣感受 Oh no 的驚訝，再確認 Oh no 後面有逗號、This 有大寫。"
     ]
   },
   "Mr. President": {
     "zh": "總統先生",
     "ipa": "/ˈmɪstər ˈprezɪdənt/",
-    "headline": "Mr. 後面不加 the，President 首字母要大寫。",
-    "items": [
+    "headline": "稱謂 + 職稱：Mr. 不能省，President 要大寫當專有名詞",
+    "structure": [
       {
-        "point": "標題稱謂",
-        "ok": "「Mr. President」",
-        "bad": "「Mr. the President」",
-        "why": "Mr. 對應中文的「先生」，後面接專有名詞或特定職稱時不加冠詞；the 只能用於沒有專名形容的職稱前，例如 the president of the company。總統是特定的人與職務，前面不能再加 the。",
-        "exam": "會考常把「Mr./Ms./Dr. + 專有名詞」與「the + 職稱 of 地點」並列成選項，考你判斷冠詞該不該用。"
+        "role": "敬稱/稱謂",
+        "token": "Mr.",
+        "pos": "稱謂 (Title) — Mister 的縮寫",
+        "func": "對男性的尊稱，必須接在姓氏或職稱前面，Mr. 後面的句點是英文標點規則的一部分，不能漏寫",
+        "mark": "O"
       },
       {
-        "point": "縮寫與句點",
-        "ok": "「Mr.」",
-        "bad": "「Mr President」",
-        "why": "Mr. 是 Mister 的縮寫，正式稱謂後固定要加句點，而且句末只點一次，例如 (O) Good morning, Mr. President.。漏掉句點雖然意思還看得懂，但不正式，會考的標準寫法一律要有。",
-        "exam": "會考閱讀與聽力常出現 Mr./Ms./Mrs./Dr.，拼字題會考縮寫後的句點，不可漏字或多加。"
-      },
-      {
-        "point": "專有名詞大小寫",
-        "ok": "「President」",
-        "bad": "「Mr. president」",
-        "why": "這裡的 president 指的是「總統」這個特定職位，屬於專有名詞，所以 P 一定要大寫，不可當成一般名詞小寫。若是「某公司的總裁」這種帶限定說明的職稱，才沒有專名的大寫規則。",
-        "exam": "會考字彙與閱讀常以專有名詞大小寫設陷阱，專有名詞首字母漏了大寫就算錯，整個選項都不給分。"
+        "role": "職稱",
+        "token": "President",
+        "pos": "專有名詞 (Proper Noun) — 總統",
+        "func": "表示對方的職位，是 Mr. 所指的對象；指特定國家的元首時屬於專有名詞，開頭必須大寫",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "Good evening, Mr. President.",
-        "note": "稱謂放在問候語之後，前面用逗號隔開，Mr. 的縮寫句點與句末句點都要有，不可重複。"
+        "title": "專有名詞大小寫錯誤（president 沒大寫）",
+        "bad": "(X) Good morning, Mr. president. ／ (X) MR. PRESIDENT",
+        "ok": "(O) Good morning, Mr. President.",
+        "why": "President 在這裡不是一般名詞，而是「某一國元首」的職稱，性質接近專有名詞，開頭一定要大寫。中文的「總統」沒有大小寫的問題，學生最容易在打字時直接照著中文語感的首字大寫規則處理，結果把整個片語寫成 mr. president 或全部大寫的 MR. PRESIDENT。判斷法：前面有 Mr. 這種敬稱，後面就是對特定的人的稱呼，屬於專有名詞範圍。",
+        "exOkText": "(O) **Mr. President**, thank you for your time.",
+        "exOkZh": "總統先生，感謝您撥空。",
+        "exBadText": "(X) **Mr. president**, thank you for your time.",
+        "exBadNote": "錯誤：職稱 President 是專有名詞，開頭要大寫"
       },
       {
-        "ok": false,
-        "text": "Good evening, Mr. the President.",
-        "note": "多加冠詞 the。因為 President 是專有名詞，前面不能加 the；去掉 the 才是正確寫法。"
+        "title": "稱謂與職稱順序顛倒（中式直譯）",
+        "bad": "(X) President Mr. Wang ／ (X) Mr. President of Mr. Wang",
+        "ok": "(O) Mr. President ／ (O) President Wang",
+        "why": "中文「總統先生」由前到後是「職稱＋先生」，學生容易照著中文順序直譯成 President Mr. Wang。英文的規則剛好相反：稱謂 Mr. 一定在最前面，接著才是職稱或姓氏。稱謂只能出現一次，Mr. President 與 President Wang 兩種都正確，但不能把 Mr. 擠到職稱後面，也不能中間插入 of。",
+        "exOkText": "(O) **Mr. President** and **President Wang** both spoke today.",
+        "exOkZh": "總統先生和王總統今天都發言了。",
+        "exBadText": "(X) **President Mr. Wang** spoke today.",
+        "exBadNote": "錯誤：稱謂 Mr. 必須在職稱前面，順序不能照中文直譯"
+      },
+      {
+        "title": "稱謂選用錯誤（不分男女都用 Mr.）",
+        "bad": "(X) Excuse me, Mr. White, is this seat yours?",
+        "ok": "(O) Excuse me, Ms. White, is this seat yours?",
+        "why": "台灣中文的「先生」不區分性別，學生因此把 Mr. 當成對任何人的通用稱呼，對女性也說 Mr.。英文的稱謂分得很清楚：Mr. 只用於男性，女性要用 Ms.、Mrs. 或 Miss。同樣的道理也適用於職稱稱呼，對方是女性就不能用 Mr. President，必須依對象的性別與身分選擇合適的稱謂。",
+        "exOkText": "(O) **Mr. President**, may I ask a question?",
+        "exOkZh": "總統先生，我可以問一個問題嗎？",
+        "exBadText": "(X) This is **Mr. Smith**. May I help you?",
+        "exBadNote": "錯誤：對方是女性，稱謂應為 Ms. 或 Mrs.，不能一律用 Mr."
+      },
+      {
+        "title": "拼寫錯誤（President 字母順序／重複）",
+        "bad": "(X) Mr. Presidant ／ (X) Mr. Prresident",
+        "ok": "(O) Mr. President",
+        "why": "President 這個字是基礎單字，卻因為不常用而容易被拼錯，常見錯誤是 presidant（把 n 與 d 的順序記成中文的「總統」發音想像）、prresident（重複 r），以及漏掉中間的 e 寫成 pritdent。會考單字題與打字練習都會直接考拼字。記法：pre-si-dent，四段，si 固定，最後是 -dent。",
+        "exOkText": "(O) The **President** will give a speech tomorrow.",
+        "exOkZh": "總統明天將發表演說。",
+        "exBadText": "(X) The **Presidant** will give a speech tomorrow.",
+        "exBadNote": "錯誤：拼字錯誤，正確為 President（pre-si-dent）"
       }
     ],
     "traps": [
-      "「Mr. the President」是最典型的錯誤，the 只能搭配沒有專名的職稱。",
-      "President 既是職稱也是專有名詞，這裡兩個字都要大寫。",
-      "縮寫 Mr. 的句點不可漏，也不要和句末句點重複點兩次。"
+      "大寫與小寫的分界：指出「特定國家的元首」時用大寫 President（如 the President of the United States），若泛指某公司的負責人或學校的校長則用小寫 president（如 the president of our school）。",
+      "稱謂與全名不能重複：Mr. President 與 President Wang 擇一使用，不可寫成 Mr. President Wang Chen，也不要加 of 或逗號把稱謂和名字隔開。",
+      "稱謂受詞位置：稱謂片語當主詞時，前面不要再加冠詞（不要寫 the Mr. President），當一般職稱描述職位時才需要 the。"
     ],
     "strategy": [
-      "把「稱謂 + 專有名詞」當成公式背：Mr./Ms./Mrs./Dr. 後面直接接專有名詞。",
-      "看到句中有 the，就先檢查後面的名詞是不是專有名詞，是就不能加 the。",
-      "練習時先寫稱謂再寫名字，中間不要憑空插入冠詞或 the。"
+      "記住公式：「敬稱 Mr.／Ms. ＋ 職稱（President, Governor, Mayor）＋（選填）姓氏」，稱謂永遠排第一。",
+      "打字時把句首大寫的規則關掉想：Mr. President 的 P 大寫是因為它是專有名詞，不是因為它在句首。",
+      "看到 male / female 的題目敘述，先確定對方性別再選稱謂，考試中 Ms. 與 Mrs. 的差別也算一分。",
+      "把 President 依音節分段記憶：pre-si-dent，一邊念一邊打字，練到不用想就能打出來。"
     ]
   },
   "calling": {
     "zh": "來電",
     "ipa": "/ˈkɔːlɪŋ/",
-    "headline": "calling 在這裡當名詞用，表示「來電這件事」。",
-    "items": [
+    "headline": "call 的 -ing 形式，這裡當名詞用，意思是「來電」這件事",
+    "structure": [
       {
-        "point": "動名詞",
-        "ok": "「your calling」",
-        "bad": "「your to call」",
-        "why": "calling 在這裡是動名詞，也就是動詞加 -ing 當名詞用，表示「打電話這件事」。your 是所有格形容詞，後面一定要接名詞，所以接 calling 正確；接 to call 就變成「你的去呼叫」，語意完全不通。",
-        "exam": "會考常在完形填空或翻譯題測 Thank you for calling 這類 for + 動名詞的固定結構。"
+        "role": "動名詞",
+        "token": "calling",
+        "pos": "動名詞／現在分詞 (Gerund / Present Participle) — call 的 -ing 形式",
+        "func": "在此句中不當動詞，而是名詞化，表示「打電話」這個行為或事件，中文翻譯為「來電」",
+        "mark": "O"
       },
       {
-        "point": "片語選擇",
-        "ok": "「a phone call from you」",
-        "bad": "「a calling from you」",
-        "why": "「來電」最自然的說法是 a call 或 a phone call。calling 當名詞時多用於 your calling 或 a calling card（名片）；硬翻成 a calling 雖看得懂，但不是會考與日常使用的說法。",
-        "exam": "會考聽力常出現 Sorry, wrong number. 這類來電情境，選項多為 a phone call 或 a call。"
-      },
-      {
-        "point": "發音與拼字",
-        "ok": "calling /ˈkɔːlɪŋ/",
-        "bad": "calling /ˈkɔːrɪŋ/",
-        "why": "字母 l 在母音前後都讀 /l/，台灣學生常把它唸成 /r/，聽起來像 car-ing。打字時呼叫這個字要有兩個 l，漏掉一個就變成 caling，拼字與發音要一起記。",
-        "exam": "會考字彙題有時考拼字或字首發音，call、calling 這組短母音加 /l/ 的字要能立刻反應。"
+        "role": "動名詞片語",
+        "token": "you calling",
+        "pos": "動名詞片語 (Gerund Phrase)",
+        "func": "整段相當於一個名詞「您的來電」，在 because of 後面擔任受詞，是本句要表達的關鍵",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "Thank you for your calling.",
-        "note": "介系詞 for 後面接名詞 your calling，意思是「謝謝您來電」，是會考與生活上都會用的說法。"
+        "title": "詞性錯誤：用動詞原形 call 代替 calling",
+        "bad": "(X) It wasn't because of you call.",
+        "ok": "(O) It wasn't because of you calling.",
+        "why": "because of 後面必須放名詞或名詞化的成分，不能直接放動詞原形。中文「因為您打電話」聽起來像一整個動作，學生就順手寫成 you call，但英文裡 call 在這裡是動詞，整句意思會不成立。解法是加上 -ing 把它變成名詞：call 變 calling，整段就等於一個名詞「您的來電」，句子才完整。",
+        "exOkText": "(O) I'm glad about **your calling** yesterday.",
+        "exOkZh": "我很感謝你昨天打電話來。",
+        "exBadText": "(X) I'm glad about **your call** is coming. ／ (X) It's because of **you call**.",
+        "exBadNote": "錯誤：because of / about 後面接名詞，動詞要加 -ing 變成名詞"
       },
       {
-        "ok": false,
-        "text": "Thank you for your to call.",
-        "note": "your 後面不能用 to + 動詞。要嘛改成 Thank you for calling me，要嘛把 to call 改回名詞 your calling。"
+        "title": "結構錯誤：介系詞後面多加 be 動詞",
+        "bad": "(X) It's because of you are calling me.",
+        "ok": "(O) It's because of you calling me.",
+        "why": "you calling 已經是一個完整的動名詞片語，it 就是它的形式主語。學生常看到 you 就反射性地補上 are，變成 because of you are calling，這樣等於在句子中間塞進一個 be 動詞，結構就壞掉了。判斷法：because of 這種介系詞片語裡面不會再有 be 動詞，因為整段已經被當成名詞使用，不是一個句子。",
+        "exOkText": "(O) Thank you **for calling** me so late.",
+        "exOkZh": "謝謝你這麼晚還打電話給我。",
+        "exBadText": "(X) Thank you **for you are calling** me so late.",
+        "exBadNote": "錯誤：動名詞片語前不能再加 you are，for 後直接接 calling"
+      },
+      {
+        "title": "時態錯誤：because of / after 後面直接用過去式",
+        "bad": "(X) It's because of you called me that I forgot.",
+        "ok": "(O) It's because of you calling me that I forgot.",
+        "why": "because of、after、before、thank you for 這些片語後面接的是「事情的名詞」，不是句子，所以不能隨意改成過去式 called。中文「因為您打電話」沒有動詞時態變化，學生一看到時間已經過去，就順手把 call 變成 called。判斷法：只要這個片語整段被當成名詞，裡面的動詞就固定用原形加 -ing，不隨句子時態改變。",
+        "exOkText": "(O) I was late **because of calling** you on the way.",
+        "exOkZh": "我因為路上打電話給你而遲到了。",
+        "exBadText": "(X) I was late **because of called** you on the way.",
+        "exBadNote": "錯誤：because of 後面是名詞化的動名詞 calling，不是過去式 called"
+      },
+      {
+        "title": "拼寫錯誤：雙 l 與字母順序",
+        "bad": "(X) because of you cailing ／ (X) because of you callling",
+        "ok": "(O) because of you calling",
+        "why": "call 本身是 c-a-l-l 雙 l，加 -ing 之後變成 c-a-l-l-i-n-g，總共七個字母。台灣學生最常見的錯誤是打字時漏掉一個 l 寫成 callling，或把 c 和 a 順序顛轉寫成 cailing。這是基礎拼字題與打字練習的高頻扣分點。記法：call 讀「考」，calling 讀「考-靈」，中間那個 l 絕對不能少。",
+        "exOkText": "(O) The **calling** card on the desk belongs to Tom.",
+        "exOkZh": "桌上那張名片是 Tom 的。",
+        "exBadText": "(X) The **cailing** card on the desk belongs to Tom.",
+        "exBadNote": "錯誤：拼字錯誤，應為 calling（c-a-l-l-i-n-g）"
       }
     ],
     "traps": [
-      "for、of 這類介系詞後面接動詞，一律要變成 -ing 形式。",
-      "Thank you for 後面是 doing，不是 for to do，這題最常被扣分。",
-      "calling 有雙 l，唸成 /r/ 或漏打一個 l 都不正確。"
+      "名詞與動詞的分界：calling 出現在「主詞位置」時是名詞（那通來電），出現在「動作進行中」時才是動詞（我正在打）。中文都譯成「打電話」，英文判斷要看它在句子裡擔任什麼成分。",
+      "calling 不等於 telephone：中文「電話來電」直譯會寫出 a telephone calling，英文中 telephone 與 call 重複，正確說法是 a phone call 或 a telephone call。",
+      "介系詞陷阱：克漏字測驗常考「thank you for ___」「I'm glad about ___」，答案都是 -ing 形式（calling, helping, meeting），不是 call 原形或 called。"
     ],
     "strategy": [
-      "把來電相關的片語整理成同一組記憶：a call、a phone call、your calling。",
-      "看到動詞就問自己「這裡當名詞嗎？」當名詞就加 -ing 變成動名詞。",
-      "打字時把 calling 當成一個完整單字一次打完，不要中途漏掉 l。"
+      "記公式：介系詞（of / for / about / because of）＋ 動詞原形 + ing ＝ 一個名詞，記成「V-ing 當名詞」。",
+      "看到 because of 就立刻在腦中把後面換成「一件事」來翻譯，語意會通順很多：因為「您打電話這件事」。",
+      "打字時用手指分段敲 c-a-l-l，再接 -i-n-g，特別注意雙 l 與 e 結尾（-ing 前面不加 e）。",
+      "把 calling 和 called 分開練：calling 是進行式／動名詞，called 是過去式，兩者不能互換位置。"
     ]
   },
   "If it wasn't because of you calling": {
     "zh": "如果不是因為您打電話來",
     "ipa": "/ɪf ɪt wɑːznˈt bɪˈkəz əv juː ˈkɔːlɪŋ/",
-    "headline": "虛擬語氣用 was，because of 後接 -ing。",
-    "items": [
+    "headline": "It 虛主語 + wasn't because of：省略倒裝的「要不是…」句型",
+    "structure": [
       {
-        "point": "虛擬語氣",
-        "ok": "「If it wasn't because of you calling, …」",
-        "bad": "「If it is not because of you calling, …」",
-        "why": "「如果不是因為您打電話來」是與現在事實相反的假設，虛擬語氣的 if 子句要用過去式 was 搭配否定，讀起來才是「事實上並非如此」。若寫成 is not，就變成單純的「如果事實不是這樣」，語氣完全不同。",
-        "exam": "會考常考與現在事實相反的假設句改寫題，例如 If I were you, I would…，答題前先判斷是否與現實相反。"
+        "role": "連接詞",
+        "token": "If",
+        "pos": "連接詞 (Conjunction)",
+        "func": "帶出從屬子句，與後面的主句（I am on stage…）配對，整個句子是「與現在事實相反」的假設",
+        "mark": "O"
       },
       {
-        "point": "because of 後接動名詞",
-        "ok": "「because of you calling」",
-        "bad": "「because of you to call」",
-        "why": "because of 是介系詞，後面接名詞或動詞的 -ing 形式，所以 calling 正確；多加 to 變成 because of you to call 就錯了。想用不定詞必須去掉 of，改成 because you called。",
-        "exam": "會考選擇與改寫題常出現 because of 後面誤加 to 的陷阱，判斷口訣是「介系詞接名詞或動名詞」。"
+        "role": "虛主語",
+        "token": "it",
+        "pos": "代詞 (Pronoun) — 虛主語 (Dummy Subject)",
+        "func": "本身沒有意義，只是把真正的主詞 because of you calling 提到前面，讓句子可以接動詞；不能省略，也不能換成 he、she、you",
+        "mark": "O"
       },
       {
-        "point": "否定縮寫",
-        "ok": "「wasn't」",
-        "bad": "「was'nt」",
-        "why": "was not 縮寫成 wasn't，字母 n 和 t 要相鄰，撇號不另加，was'nt 這種寫法是錯的。wasn't 本身已經含有 not，不能再接一個 not，也不能再補一次 was。",
-        "exam": "會考完形填空常以縮寫字形出題，wasn't、weren't、didn't 都是 n 加 t 的組合，要記牢。"
+        "role": "縮寫否定動詞 + 介系詞片語",
+        "token": "wasn't because of",
+        "pos": "縮寫句 (Contraction) — was not because of",
+        "func": "表示「要不是…」的讓步語氣，說話人用一整個否定來表達「多虧你打電話，我才有這個機會」",
+        "mark": "O"
+      },
+      {
+        "role": "介系詞",
+        "token": "of",
+        "pos": "介系詞 (Preposition)",
+        "func": "把 because 與 you calling 連起來；because of 後面只能接名詞或動名詞",
+        "mark": "O"
+      },
+      {
+        "role": "動名詞片語",
+        "token": "you calling",
+        "pos": "動名詞片語 (Gerund Phrase)",
+        "func": "真正的內容「您打電話來」，作為 because of 的受詞，it 空的真正主詞",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "If it wasn't for you calling, I would have been late.",
-        "note": "虛擬語氣寫法：if 子句用過去式 was 加否定，主句用 would have + 過去分詞，兩個子句之間用逗號隔開。"
+        "title": "介系詞誤用（because 漏掉 of）",
+        "bad": "(X) If it wasn't because you calling.",
+        "ok": "(O) If it wasn't because of you calling.",
+        "why": "這裡的 because 是介系詞，後面一定要加 of 才能接受詞，這就是固定片語 because of。學生常把 because 當成連接詞（可接完整句子，如 because I was busy）而忘記 of。判斷法：because of 後面接名詞；because 後面接完整句子，兩者不能混。整句意思會從「要不是您的來電」變成語法不成立。",
+        "exOkText": "(O) If it wasn't **because of** you, I would have failed.",
+        "exOkZh": "要不是有你，我就會不及格了。",
+        "exBadText": "(X) If it wasn't **because you** called, I would have failed.",
+        "exBadNote": "錯誤：介系詞片語應為 because of，不能漏掉 of"
       },
       {
-        "ok": false,
-        "text": "If it wasn't because of you to call, I would have been late.",
-        "note": "because of 是介系詞，後面要接 -ing 形式的 calling，不能接不定詞 to call；把 to 刪掉就正確了。"
+        "title": "虛主語 it 誤換或省略",
+        "bad": "(X) If he wasn't because of you calling. ／ (X) If wasn't because of you calling.",
+        "ok": "(O) If it wasn't because of you calling.",
+        "why": "這個句型是英文口語最常見的省略倒裝，完整寫法是 If it were not because of you calling me…；it 是沒有實質意義的虛主語，只負責把 because of you calling 這個長片語提到句首當主語。學生看到 because of 就想找一個「人」當主語而填上 he，或乾脆省略 it，兩種都錯。",
+        "exOkText": "(O) **If it wasn't because of** your help, I couldn't finish.",
+        "exOkZh": "要不是有你的幫忙，我沒辦法完成。",
+        "exBadText": "(X) **If wasn't because of** your help, I couldn't finish.",
+        "exBadNote": "錯誤：虛主語 it 不能省略，也不能換成 he / she / you"
+      },
+      {
+        "title": "否定語意顛倒（wasn't 變成 was）",
+        "bad": "(X) If it was because of you calling, I am still at home.",
+        "ok": "(O) If it wasn't because of you calling, I would be still at home.",
+        "why": "wasn't 是「不是」，整句要表達的是「要不是您打電話來（我才不會在這裡）」，帶有感謝與驚訝的語氣。如果去掉否定變成 was，語意完全反轉成「正因為您打電話來，我還在家裡」，跟講話者想表達的相反。閱讀測驗常故意放一個 wasn't 讓你判斷說話者的語氣，寫作時更要先想清楚自己是要感謝還是要抱怨。",
+        "exOkText": "(O) If it **wasn't** because of you calling, I would still be sleeping.",
+        "exOkZh": "要不是您打電話來，我現在還在睡覺。",
+        "exBadText": "(X) If it **was** because of you calling, I would still be sleeping.",
+        "exBadNote": "錯誤：去掉否定後語意完全相反，wasn't 的「要不是」語氣不能省"
+      },
+      {
+        "title": "結構錯誤：because of 之後多加 be 動詞",
+        "bad": "(X) If it wasn't because of you are calling me.",
+        "ok": "(O) If it wasn't because of you calling me.",
+        "why": "because of you calling me 整段是一個名詞，it 只是它的替身，兩者之間不能再插入 are。學生常因為看到 you 就反射式補上 be 動詞，整句的結構就垮了。判斷法：把 because of 後面整段圈起來當一個名詞看待，it 已經是它的主語，裡面絕對不會有 be 動詞。",
+        "exOkText": "(O) If it wasn't because of **you calling** me, I'd miss the show.",
+        "exOkZh": "要不是您打電話給我，我就會錯過表演了。",
+        "exBadText": "(X) If it wasn't because of **you are calling** me, I'd miss the show.",
+        "exBadNote": "錯誤：動名詞片語前不能再加 are，because of 後面是名詞"
       }
     ],
     "traps": [
-      "because of 後面接 -ing，because 後面才接完整子句（because you called）。",
-      "這句的主詞是 it，所以只能用 wasn't，不能寫 weren't。",
-      "虛擬語氣的 if 子句要用過去式，不要用 is / am。",
-      "if 子句在句首時，後面一定要有逗號再接主句。"
+      "it 不是「他／她」：這個句型裡的 it 沒有任何指涉對象，學生若代入中文「要不然」的「不然」兩字，很容易誤以為要填人稱代詞。",
+      "wasn't 的強烈語氣：口語中的 wasn't because of 是強烈的「要不是」；正式書面語應寫成 If it were not because of…（were 虛擬式），兩者語氣不同，會考閱讀可能用正式寫法出題。",
+      "介系詞測驗點：句中空格若接在 because 後面且後續是名詞或 you calling，答案必須是 of；because of 與 because 意思相近但用法完全不同。"
     ],
     "strategy": [
-      "整理「because of + 名詞或 doing」與「because + 主詞 + 動詞」兩種對照表。",
-      "寫假設句時先判斷「與現在事實相反」還是「未來可能」，再決定用 was 還是 will。",
-      "打字時把 wasn't 當一個單字一次打完，n 和 t 不要拆開或漏字。"
+      "背下整個骨架：If it wasn't because of + 動名詞（…, I would…），口語與作文都能直接套用。",
+      "拆解語意：把它讀成「要不是您打電話來，後面的句子才會成立」，就會發現後面的 I am on stage / I would be 是一組對照，立刻抓到句意重點。",
+      "遇到 it 開頭的 because 句，直接在 it 底下畫線提醒自己：這是虛主語，不能刪、不能換。",
+      "檢查 because of 後面：只看兩個字——of 在不在、後面有沒有 be 動詞，就能擋掉最常見的兩個錯。"
     ]
   },
   "I am on stage": {
     "zh": "我正在舞台上",
     "ipa": "/aɪ æm ɑːn steɪdʒ/",
-    "headline": "舞台前不加 the，主詞 I 配 am。",
-    "items": [
+    "headline": "on stage 不加 the：整個片語當副詞用，意思是「在舞台上」",
+    "structure": [
       {
-        "point": "介系詞與冠詞",
-        "ok": "「on stage」",
-        "bad": "「on the stage」",
-        "why": "「舞台」指演出這個場所時是固定說法 on stage，不加冠詞；加了 the 會讓人聯想到舞台上的某個位置或道具。中文的「在舞台上」本來就沒有對應的 the，國中會考以不加 the 為標準寫法。",
-        "exam": "會考常以 on stage、in the audience 這組片語做對照，測學生能否分辨介系詞與冠詞。"
+        "role": "主詞",
+        "token": "I",
+        "pos": "代詞 (Pronoun) — 第一人稱單數",
+        "func": "句子的主語，發音時要輕短，放句首大寫",
+        "mark": "O"
       },
       {
-        "point": "be 動詞",
-        "ok": "I am on stage.",
-        "bad": "I on stage.",
-        "why": "英文的 be 動詞不能省略。中文「我正在舞台上」沒有「是」這個字，但英文一定要有 am。漏掉 be 動詞是中文母語者最常見的結構錯誤，寫完句子要回頭檢查 am、is、are 有沒有。",
-        "exam": "會考翻譯題常考中文沒有 be 動詞的情況，答題時要主動補出 am、is、are。"
+        "role": "be 動詞",
+        "token": "am",
+        "pos": "動詞 (Verb) — be 動詞",
+        "func": "與主詞 I 搭配，表示現在正在發生的狀態，後面接片語",
+        "mark": "O"
       },
       {
-        "point": "主詞與 be 動詞一致",
-        "ok": "「I am」",
-        "bad": "「I is」",
-        "why": "be 動詞必須配合主詞：I 用 am，he、she、it 用 is，you、we、they 用 are。I 是一個人稱代名詞的單數，後面只能配 am，寫成 I is 是台灣學生最常見的主詞動詞不一致。",
-        "exam": "會考單選常把 I is、they is 這類選項設成錯誤，檢查規則只有一句：主詞決定 be 動詞。"
-      },
-      {
-        "point": "固定片語辨析",
-        "ok": "「on stage / off stage / in the audience」",
-        "bad": "「in stage」",
-        "why": "上台是 on stage，下台是 off stage，坐在台下則是 in the audience。介系詞 on 用在舞台這種「表面或場所」上，寫成 in stage 就不對；這組片語常一起出題，必須成組記憶。",
-        "exam": "會考閱讀與聽力常以 on/off stage、in the audience 描述表演情境，選項多為這組片語。"
+        "role": "介系詞片語",
+        "token": "on stage",
+        "pos": "介系詞片語 (Prepositional Phrase)",
+        "func": "固定說法，on 在此表示「在某個表面之上」；整個片語當副詞用，修飾 am，表示人正站在舞台上",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "I am on stage now.",
-        "note": "on stage 是固定搭配，不加冠詞 the；be 動詞 am 配合主詞 I，句尾的 now 表示此刻正在進行。"
+        "title": "冠詞誤加（on the stage）",
+        "bad": "(X) I am on the stage now.",
+        "ok": "(O) I am on stage now.",
+        "why": "這是台灣學生最常見的錯誤，直覺上中文「在舞台上」有「這座舞台」的感覺，就想加 the。英文的 on stage 是一個固定片語，stage 在這裡是抽象的「舞台這個場所」，前面不加定冠詞。同理還有 on purpose（故意的）、on duty（值班的）這類不加 the 的片語。判斷法：stand on stage 這種「演出、表演」的語境一律不加 the。",
+        "exOkText": "(O) The singer is **on stage** right now.",
+        "exOkZh": "歌手此刻正在舞台上。",
+        "exBadText": "(X) The singer is **on the stage** right now.",
+        "exBadNote": "錯誤：on stage 是固定片語，前面不加 the"
       },
       {
-        "ok": false,
-        "text": "I am on the stage now.",
-        "note": "多加冠詞 the。舞台泛指演出場所時直接用 on stage；若改成 off stage 就變成「我已經下台了」，語意完全不同。"
+        "title": "介系詞誤用（in stage / in the stage）",
+        "bad": "(X) I am in stage. ／ (X) I am in the stage.",
+        "ok": "(O) I am on stage.",
+        "why": "on 表示「在某個平面的上面」，in 表示「在裡面」。站在舞台上，人是在舞台的表面之上，所以用 on；用 in 會讓人想像成「舞台的內部空間」。中文「在舞台（裡）」不分上與內，學生就容易選 in。練習時可以舉例記憶：on the desk（在桌面上）、on the bus（在公車上）、on stage（在舞台上），這一類都固定用 on。",
+        "exOkText": "(O) Please stay **on stage** until the music stops.",
+        "exOkZh": "請留在舞台上，直到音樂停止。",
+        "exBadText": "(X) Please stay **in stage** until the music stops.",
+        "exBadNote": "錯誤：介系詞應為 on，不是 in"
+      },
+      {
+        "title": "語序錯誤（I am stage on）",
+        "bad": "(X) I am stage on with my friends.",
+        "ok": "(O) I am on stage with my friends.",
+        "why": "台灣中文說「我舞台在」時是把地點放在前面，學生因此照著中文語序把 stage 提前。英文的基本規則是「主詞 + 動詞 + 其他」，片語放在 be 動詞之後，不論裡面有幾個單字都不能拆開顛倒。這是中文母語者的典型語序干擾，尤其在口頭解釋題或翻譯題最容易出現。",
+        "exOkText": "(O) My friends are **on stage**, and I am backstage.",
+        "exOkZh": "我的朋友們在台上，而我在後台。",
+        "exBadText": "(X) My friends are **stage on**, and I am backstage.",
+        "exBadNote": "錯誤：片語不可拆開顛倒，應為 on stage"
+      },
+      {
+        "title": "be 動詞省略（I on stage）",
+        "bad": "(X) I on stage every Friday.",
+        "ok": "(O) I am on stage every Friday.",
+        "why": "中文口說「我（每週五）都在舞台」會省略「是」，學生便把這個習慣帶進英文，寫成 I on stage。英文的句子只要有主詞 I，就一定要有動詞；be 動詞不能用「省略」處理。這類錯誤在中文演講稿翻譯、口語練習題中特別常見，檢查方法很簡單：寫完後看「主詞後面有沒有動詞」。",
+        "exOkText": "(O) She **is on stage** every Friday night.",
+        "exOkZh": "她每週五晚上都在舞台上。",
+        "exBadText": "(X) She **on stage** every Friday night.",
+        "exBadNote": "錯誤：主詞後缺少 be 動詞，應為 is on stage"
       }
     ],
     "traps": [
-      "「在舞台上」是 on stage，不加 the，這是中文母語者最常錯的地方。",
-      "I 後面用 am，不要寫成 I is。",
-      "be 動詞不能省略，英文沒有「我＋在台上」這種省略說法。",
-      "舞台用 on 不用 in，觀眾席才是 in the audience。"
+      "stage 前面不加 the：會考與日常口語都是 on stage；只有在強調「這一座特定的舞台」或與其他舞台對比時，才會用 on the stage。",
+      "stage 是可數名詞：on a stage（在一座舞台上，單數加冠詞）、on two stages（兩座舞台）都可以；沒有冠詞的 on stage 是一種「演出狀態」的說法。",
+      "近義片語要分清：on stage（在舞台上的演出中）、on the stage（在舞台的表面上）、backstage（在後台），位置與情境不同，不能互換。"
     ],
     "strategy": [
-      "把 on stage、off stage、in the audience 三個片語綁在一起背，考試直接套。",
-      "寫完 be 動詞句立刻自我檢查：主詞是誰？對應的 am、is、are 有沒有？",
-      "中翻英時分兩步：先補出 be 動詞，再處理介系詞與冠詞。"
+      "記成公式：「主詞 + am / is / are + on stage」，整個片語貼在 be 動詞後面，不加 the。",
+      "朗讀整句（I am on stage.）建立語感，特別念出連音 /ən steɪdʒ/，就不容易再插入冠詞。",
+      "寫作檢查三件事：主詞後面有沒有 be 動詞、on stage 有沒有被拆開、有沒有多加 the。",
+      "延伸練習：on time（準時）、on duty（值班）、on sale（特價中），把這組不加 the 的片語一起背最容易記住。"
     ]
   },
   "If it wasn't because of you calling, I am on stage with the besties.": {
     "zh": "如果不是因為您打電話來，我現在正跟好朋友在台上呢。",
     "ipa": "/ɪf ɪt wɑːznˈt bɪˈkəz əv juː ˈkɔːlɪŋ, aɪ æm ɑːn steɪdʒ wɪð ðə ˈbestiːz/",
-    "headline": "if 子句後要逗號；with 表示「和…一起」。",
-    "items": [
+    "headline": "從屬子句後要有逗號：完整句 = If it wasn't because of you calling, + I am on stage…",
+    "structure": [
       {
-        "point": "複合句與標點",
-        "ok": "If it wasn't because of you calling, I am on stage with the besties.",
-        "bad": "If it wasn't because of you calling I am on stage with the besties.",
-        "why": "if 條件子句放在句首時，後面一定要加逗號，再接主句。少了逗號，讀者會在 calling 之後就停下，句子讀起來斷成兩截，句子的結構關係不清楚，格式分就會被扣。",
-        "exam": "會考完形填空與翻譯題常出現 If 開頭的長句，逗號是得分關鍵，少一個就整題失分。"
+        "role": "連接詞",
+        "token": "If",
+        "pos": "連接詞 (Conjunction)",
+        "func": "開啟從屬子句，代表一個與現在事實相反的假設，是全句第一個字，首字母要大寫",
+        "mark": "O"
       },
       {
-        "point": "虛擬語氣",
-        "ok": "「If it wasn't because of you calling, …」",
-        "bad": "「If it is not because of you calling, …」",
-        "why": "這是與現在事實相反的假設，虛擬語氣的 if 子句用過去式 was 加否定。另外 were 通常接 you、he、she、they 這類主詞，it 後面固定用 wasn't，寫成 is not 就失去了假設語氣。",
-        "exam": "會考常把虛擬語氣句改成陳述句或反過來出題，做題前先看主詞是 it 還是 you。"
+        "role": "虛主語",
+        "token": "it",
+        "pos": "代詞 (Pronoun) — 虛主語 (Dummy Subject)",
+        "func": "沒有實質意思，只負責讓 because of you calling 這個長片語能當主語使用，不能刪也不能換成別的人",
+        "mark": "O"
       },
       {
-        "point": "with 與 and",
-        "ok": "I am on stage with the besties.",
-        "bad": "I am on stage and the besties.",
-        "why": "with 表示「和……一起」，後面接同伴的名詞；and 是連接詞，不能把兩個名詞直接變成「我」的主詞。要同時提到自己和朋友，要寫 with me and my besties，或簡單寫 with my besties。",
-        "exam": "會考單選常考 with 表示「和……一起」，and 則用來連接詞語或對等成分，兩者不能互換。"
+        "role": "縮寫否定 + 介系詞片語",
+        "token": "wasn't because of",
+        "pos": "縮寫句 (Contraction) — was not because of",
+        "func": "表示「要不是…」的讓步語氣，帶有感謝對方來電的意味",
+        "mark": "O"
       },
       {
-        "point": "because of 後接動名詞",
-        "ok": "「because of you calling」",
-        "bad": "「because of you to call」",
-        "why": "because of 是介系詞，後面接名詞或 -ing 動名詞，calling 正確；多加 to 會變成 because of you to call 而錯。想用 to call 要去掉 of，改成 because you called。",
-        "exam": "會考翻譯與改寫題常在 because of 後面誤加 to，看到介系詞就立刻檢查後面的詞形。"
+        "role": "人稱代詞",
+        "token": "you",
+        "pos": "代詞 (Pronoun) — 受詞",
+        "func": "作為動名詞 calling 的執行者，整段 you calling 當名詞「您的來電」用",
+        "mark": "O"
+      },
+      {
+        "role": "動名詞",
+        "token": "calling",
+        "pos": "動名詞 (Gerund) — call 的 -ing 形式",
+        "func": "把動詞 call 名詞化，整段 you calling 相當於中文的「您打電話來」這件事",
+        "mark": "O"
+      },
+      {
+        "role": "標點",
+        "token": ",",
+        "pos": "標點 (Punctuation) — 逗號",
+        "func": "分隔開頭的 If 從屬子句與後面的主句，是本句最重要的標點得分點，漏寫會變成-run-on 錯誤",
+        "mark": "O"
+      },
+      {
+        "role": "主詞",
+        "token": "I",
+        "pos": "代詞 (Pronoun) — 第一人稱單數",
+        "func": "主句的主詞，指講話自己；放在逗號後面時仍要大寫",
+        "mark": "O"
+      },
+      {
+        "role": "be 動詞片語",
+        "token": "am on stage",
+        "pos": "動詞片語 (Verb Phrase)",
+        "func": "be 動詞 am 加上固定片語 on stage（不加 the），表示「正站在舞台上」",
+        "mark": "O"
+      },
+      {
+        "role": "介系詞片語",
+        "token": "with the besties",
+        "pos": "介系詞片語 (Prepositional Phrase)",
+        "func": "with 表示「跟……一起」，the besties 是 bestie 的複數，前面要加定冠詞 the，語意為「跟我的好朋友們一起」",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "If it wasn't because of your calling, I am still on stage with my besties.",
-        "note": "if 子句用過去式 was 加否定，主句維持現在式 am，中間用逗號分開；with my besties 表示「和我的好朋友一起」。"
+        "title": "標點錯誤：從屬子句後漏逗號",
+        "bad": "(X) If it wasn't because of you calling I am on stage with the besties.",
+        "ok": "(O) If it wasn't because of you calling, I am on stage with the besties.",
+        "why": "If 引導的是從屬子句，必須靠逗號與主句分開，這是會考標點題的固定考點。台灣學生的中文習慣是「如果……，（換行）就……」，打字時常忘記英文的逗號，句子變成兩句黏在一起。長句特別容易漏，尤其 when、if、because 這些連接詞開頭時。看到 If 就先在腦中點一個逗號，是最省力的防漏技巧。",
+        "exOkText": "(O) **If it wasn't because of you calling,** I am on stage with the besties.",
+        "exOkZh": "要不是您打電話來，我現在就正跟好朋友在台上呢。",
+        "exBadText": "(X) **If it wasn't because of you calling** I am on stage with the besties.",
+        "exBadNote": "錯誤：If 從屬子句與主句之間缺少逗號"
       },
       {
-        "ok": false,
-        "text": "If it wasn't because of you calling I am on stage with the besties.",
-        "note": "if 子句後面少了逗號，句子被硬生生切斷。補上逗號，並再確認 because of 後面接的是 -ing 形式 calling、沒有多加 to。"
+        "title": "固定片語誤加冠詞（on the stage）",
+        "bad": "(X) I am on the stage with the besties.",
+        "ok": "(O) I am on stage with the besties.",
+        "why": "on stage 是固定片語，表示「在舞台上演出」這個狀態，前面不加 the。學生看到中文「在舞台上」就自動補上定冠詞，變成 on the stage。與前一句的 if 子句合併後更容易漏判，因為注意力全被前面的 because of 吸走。檢查時只要把 on stage 三個字圈起來，問自己「這裡是場所還是演出狀態」，就能避免多餘的 the。",
+        "exOkText": "(O) We are **on stage** for the school play tonight.",
+        "exOkZh": "今晚的校園劇，我們都會上台演出。",
+        "exBadText": "(X) We are **on the stage** for the school play tonight.",
+        "exBadNote": "錯誤：on stage 為固定片語，前面不加 the"
+      },
+      {
+        "title": "結構錯誤：because of 之後多插入 be 動詞",
+        "bad": "(X) If it wasn't because of you are calling, I am on stage.",
+        "ok": "(O) If it wasn't because of you calling, I am on stage.",
+        "why": "because of you calling 整段是當作一個名詞使用，前面已有虛主語 it，所以 you 後面不能再加 are。學生看到 you 就自動補上 be 動詞，是中文母語者最典型的反應。判斷法：把 because of 到 calling 整段括起來當一個名詞看，it 已經是它的主語，裡面不可能再有 be 動詞或助動詞。",
+        "exOkText": "(O) If it wasn't because of **you calling,** I'd still be at home.",
+        "exOkZh": "要不是您打電話來，我現在還在家裡。",
+        "exBadText": "(X) If it wasn't because of **you are calling,** I'd still be at home.",
+        "exBadNote": "錯誤：動名詞片語前不能再加 are，because of 後面接的是名詞"
+      },
+      {
+        "title": "拼寫錯誤：besties 字母缺漏或順序顛倒",
+        "bad": "(X) I am on stage with the bestys. ／ (X) with the bestee",
+        "ok": "(O) I am on stage with the besties.",
+        "why": "bestie 是口語常用的「好友」，複數 besties 正確拼法是 b-e-s-t-i-e-s，七個字母。台灣學生最常寫成 bestys（漏掉 e）與 bestee（s 打成 e），兩者都直接影響拼字題與打字正確率。記法：best + ie + s，中間是 ie 這個字母組合，結尾再加 s 想成「最好的一群人」。",
+        "exOkText": "(O) I am on stage with **the besties** from my class.",
+        "exOkZh": "我正跟班上的好朋友們在台上。",
+        "exBadText": "(X) I am on stage with **the bestys** from my class.",
+        "exBadNote": "錯誤：拼字錯誤，複數應為 besties（best + ie + s）"
       }
     ],
     "traps": [
-      "if 開頭的子句後面一定要加逗號，再接主句。",
-      "with the besties 不能改成 and the besties，兩者意思不同。",
-      "虛擬語氣的 if 子句用 was，不要寫成 is。",
-      "besties 偏口語，正式場合或考試請用 friends 與 good friends。"
+      "wasn't 的語意陷阱：把否定去掉變成 If it was because of you calling，語意會完全反轉成「正因為您打電話來」。閱讀測驗常用這一個字考判斷力，做題時先圈出 wasn。",
+      "虛主語 it 與後面主句的 I：句子裡出現兩個「人稱」，it 是假的（沒有指涉對象），I 才是真的主詞。兩者不要互換，也不要把 it 刪掉。",
+      "複數名詞前的 the：besties 是複數，前面必須加 the（the besties），不可寫成 with besties；相對地，on stage 這個片語則不能加 the，兩者規則相反，最容易混淆。"
     ],
     "strategy": [
-      "讀長句先在逗號切一刀：左邊是 if 子句，右邊是主句，分兩段確認。",
-      "打完主句後檢查有沒有完整的主詞與 be 動詞，這裡是 I am。",
-      "because of 之後看到動詞就自動加 -ing；看到 to 就要立刻回頭改。"
+      "寫作時用兩段式：先寫「If it wasn't because of you calling」，寫完立刻打上逗號，再接主句「I am on stage with the besties」，標點自然不會漏。",
+      "圈出三個重點片語檢查：because of you（介系詞後不要加 be 動詞）、on stage（不加 the）、the besties（複數要加 the）。",
+      "整句唸出來聽節奏：If it wasn't because of you calling, I am on stage with the besties.，在 calling 後自然會換氣，就是逗號的位置。",
+      "把這句當成模板背起來，之後寫「要不是你幫我，我就能順利完成了」時，只要替換 calling 與主句就能套用，是最容易上手的英式口語句型之一。"
     ]
   },
   "kinds of animals": {
     "zh": "各種動物",
     "ipa": "/ˈkaɪndz əv ˈænɪ.məlz/",
-    "headline": "kinds 與 animals 都要複數，別漏掉 s",
-    "items": [
+    "headline": "複數 kinds 決定整個片語都要複數",
+    "structure": [
       {
-        "point": "名詞單複數",
-        "ok": "kinds of animals",
-        "bad": "kinds of animal",
-        "why": "「kinds of animals」表示各種動物，animals 是可數名詞複數，前面已有 kinds of 修飾。學生常只把 kind 變成 kinds，卻忘了 animal 也要加 s，寫成 kinds of animal，整個片語的數量就跑掉了。",
-        "exam": "會考常在選項中放入 kinds of animal 與 kinds of animals 讓你選，判斷關鍵是 kind 與 animal 都要複數；記住 of 後面的名詞也要跟著變複數。"
+        "role": "量詞/名詞",
+        "token": "kinds",
+        "pos": "名詞 (Noun) — kind 的複數",
+        "func": "表示「種類」，是本句的主詞，為複數形",
+        "mark": "O"
       },
       {
-        "point": "of 後面的名詞也要複數",
-        "ok": "kinds of birds",
-        "bad": "kinds of bird",
-        "why": "在數量詞加 of 加名詞的結構裡，複數的 kinds 會讓 of 後面的可數名詞一起變複數，所以要寫 kinds of birds。這是台灣學生最常漏改的地方，看到 kind 加了 s 就以為整個片語完成。",
-        "exam": "會考字詞填空或改錯常考這個搭配。練習時把 a kind of 與 kinds of 各唸一次：a kind of bird 是單數，kinds of birds 是複數，耳朵聽得出差別就比較不會錯。"
+        "role": "介系詞",
+        "token": "of",
+        "pos": "介系詞 (Preposition)",
+        "func": "表示所屬或包含的關係，把 kinds 與 animals 連起來",
+        "mark": "O"
       },
       {
-        "point": "a kind of 與 kinds of 的差別",
-        "ok": "a kind of dog",
-        "bad": "a kinds of dog",
-        "why": "a kind of 前面有單數 a，後面的名詞就用單數；kinds of 前面已經是複數 kinds，後面不用再加 a，名詞也用複數。寫成 a kinds of 等於把單數與複數兩套規則混在一起。",
-        "exam": "會考可能在同一題比較 a kind of 與 kinds of 的用法。作答時先看 kind 前面的字：a 就是一種、名詞用單數；kinds 就是多種、名詞用複數。"
+        "role": "受詞",
+        "token": "animals",
+        "pos": "名詞 (Noun) — animal 的複數",
+        "func": "作為 of 的受詞，因前面 kinds 是複數而用複數形",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "There are two kinds of animals in my picture.",
-        "note": "前面有 two，所以名詞用複數 kinds；of 後面的 animals 也要跟著變複數，be 動詞用 are，整個數量關係才一致。"
+        "title": "複數一致性錯誤（單複數不匹配）",
+        "bad": "(X) kind of animals ／ (X) kinds of animal",
+        "ok": "(O) kinds of animals",
+        "why": "這個片語的主詞是 kinds（複數），of 後面的受詞 animals 也必須是複數，數量才一致。台灣學生常犯兩種相反的錯：前面加了 s、後面忘記加 s（kinds of animal）；或以為 animal 是總稱所以永遠單數。判斷法很簡單：kinds 已經是「多種」，of 後面的可數名詞一定是複數。",
+        "exOkText": "(O) There are many **kinds of books** in the library.",
+        "exOkZh": "圖書館裡有許多種類的書。",
+        "exBadText": "(X) There are many **kind of books** in the library.",
+        "exBadNote": "錯誤：kind 應為複數 kinds，many 後面的名詞也要用複數"
       },
       {
-        "ok": false,
-        "text": "There are two kinds of animal in my picture.",
-        "note": "錯在 animal 少了 s。two 已經表示兩種，animals 一定要複數；把 animal 改回 animals，句子就正確了。"
+        "title": "介系詞誤用（for / to 取代 of）",
+        "bad": "(X) kinds for animals ／ (X) kinds to animals",
+        "ok": "(O) kinds of animals",
+        "why": "表達「……的種類」時，介系詞固定用 of，不能用 for 或 to。學生常受中文「給動物的種類」影響，把 of 誤換成 for。of 的意思是「屬於、包含」，for 是「為了、給」，兩者意思完全不同，考試不能用錯。",
+        "exOkText": "(O) I like all **kinds of music**.",
+        "exOkZh": "我喜歡所有種類的音樂。",
+        "exBadText": "(X) I like all **kinds for music**.",
+        "exBadNote": "錯誤：介系詞應為 of，不是 for"
+      },
+      {
+        "title": "可數與不可數名詞的混淆",
+        "bad": "(X) kinds of animal",
+        "ok": "(O) kinds of animals",
+        "why": "animal 是可數名詞，可以一個一個數。既然 kinds 是複數，of 後面的 animal 就必須跟著變成複數 animals。學生常誤以為「動物」是總稱（像 water、rice 那種不可數名詞）而忘記加 s，但 animals 是可數的。",
+        "exOkText": "(O) The zoo has many **kinds of monkeys**.",
+        "exOkZh": "動物園有許多種類的猴子。",
+        "exBadText": "(X) The zoo has many **kinds of monkey**.",
+        "exBadNote": "錯誤：monkey 是可數名詞，應為複數 monkeys"
+      },
+      {
+        "title": "主詞與動詞不一致（用 is 而非 are）",
+        "bad": "(X) Kinds of animals **is** interesting.",
+        "ok": "(O) Kinds of animals **are** interesting.",
+        "why": "kinds of animals 的主詞中心詞是 kinds（複數），所以 be 動詞要用 are。學生常被後面的 animals 混淆，或誤以為整個片語看起來像單數。判斷口訣：of 不影響判斷，只看 of 前面的那個名詞——kinds 是複數就用 are。",
+        "exOkText": "(O) **Kinds of food are** different in every country.",
+        "exOkZh": "各國的食物種類不同。",
+        "exBadText": "(X) **Kinds of food is** different in every country.",
+        "exBadNote": "錯誤：主詞為複數 kinds，be 動詞應為 are"
       }
     ],
     "traps": [
-      "kinds of animal 少了 s，是本單元最常見的扣分點。",
-      "of 後面的名詞要跟著 kinds 一起變複數，不能只改 kind。",
-      "a kinds of 一定是錯的，單數 a 與複數 kinds 只能擇一。",
-      "判斷要不要複數，先看前面有沒有 a、two、many 這類數量詞。"
+      "主詞與動詞呼應陷阱：會考常出現「Kinds of + 複數名詞 + 動詞」的句型，動詞要根據 of 前面的 kinds 決定單複數，用 are / have / do。",
+      "量詞複數陷阱：many kinds of、all kinds of、different kinds of 都要求 kind 加 s，而且後面的名詞也要複數。",
+      "介系詞陷阱：克漏字測驗常考「kinds ___」，答案永遠是 of，不可選 for、in、on。"
     ],
     "strategy": [
-      "打完 kinds 之後，順手檢查 of 後面的名詞是不是也加了 s。",
-      "唸英文時把單複數唸清楚，kinds of animals 結尾要聽到 -z 的音。",
-      "把 a kind of 與 kinds of 各寫三個例句當範例，考前默寫一次。",
-      "看到 kind 先問自己：這裡有幾種？一種用 a kind，兩種以上用 kinds。"
+      "記住公式：「複數 kinds + of + 複數名詞」，例如 two kinds of dogs、many kinds of flowers。",
+      "判斷主詞：看到 kinds of 開頭的句子，立刻在 kinds 底下畫線，提醒自己這是複數主詞。",
+      "檢查前後一致性：寫作或選擇題時，確認 kinds 和後面的名詞同時是複數。",
+      "大聲朗讀正確句（There are many kinds of animals in the zoo.），培養對複數 s 的語感。"
     ]
   },
   "There are many kinds of animals in the zoo.": {
     "zh": "動物園裡有許多種動物。",
     "ipa": "/ðeər ɑː ˈmeni ˈkaɪndz əv ˈænɪ.məlz ɪn ðə zuː/",
-    "headline": "There are 要配合 many 後面的複數名詞",
-    "items": [
+    "headline": "There are 說「有」，後面接真正的主詞 many kinds of animals",
+    "structure": [
       {
-        "point": "主詞動詞一致",
-        "ok": "There are many kinds of animals in the zoo.",
-        "bad": "There is many kinds of animals in the zoo.",
-        "why": "There be 句型的 be 動詞要看後面最靠近的那個名詞。many kinds of animals 是複數，所以一定用 are。學生常受中文「有」影響，習慣一律寫 There is，但複數名詞前必須用 are。",
-        "exam": "會考常在改錯或選擇題考 There is 與 There are。判斷方法是把後面的名詞唸出來：單數用 is、複數用 are，別靠中文語感猜。"
+        "role": "虛擬動詞片語",
+        "token": "There are",
+        "pos": "虛擬動詞 (Existential there) + be 動詞",
+        "func": "表示「某處有某物」，只負責引出句子，本身不帶單複數",
+        "mark": "O"
       },
       {
-        "point": "many 後接複數可數名詞",
-        "ok": "There are many kinds of animals in the zoo.",
-        "bad": "There are many kind of animals in the zoo.",
-        "why": "many 是許多，後面一定要接可數名詞的複數，所以寫 many kinds of animals。kinds 本身就是複數，animal 也要加 s；少寫一個 s，整個片語就算錯。",
-        "exam": "會考選項常放 many animal 這種寫法來考單複數。口訣：many 加可數複數，much 加不可數；animals 可以一個一個數，所以一定用 many。"
+        "role": "限定詞",
+        "token": "many",
+        "pos": "限定詞 (Determiner) — 修飾可數名詞複數",
+        "func": "修飾後面的 kinds，表示「許多種」，數量很多",
+        "mark": "O"
       },
       {
-        "point": "定冠詞 the 加場所名詞",
-        "ok": "in the zoo",
-        "bad": "in zoo",
-        "why": "zoo 是可數單數名詞，前面要有 the、this 或 the 這類限定詞。中文講在動物園裡會自然省略，但英文不能空掉，本句用 the zoo 表示談論的那個動物園。",
-        "exam": "會考單字題或翻譯題常在這裡失分。動物相關的場所詞如 the zoo、the park、the farm，前面幾乎都要加 the，寫 in the zoo 最穩妥。"
+        "role": "主詞",
+        "token": "kinds of animals",
+        "pos": "名詞片語 (Noun Phrase) — kinds 為中心詞（複數）",
+        "func": "There are 後面真正的主詞，說明「有」什麼東西；中心詞是 kinds，故用 are",
+        "mark": "O"
+      },
+      {
+        "role": "介系詞片語（地點）",
+        "token": "in the zoo",
+        "pos": "介系詞片語 (Prepositional Phrase)",
+        "func": "指出動物所在的地點，in 表示在……之內，後接 the zoo",
+        "mark": "O"
+      },
+      {
+        "role": "冠詞",
+        "token": "the",
+        "pos": "定冠詞 (Definite Article)",
+        "func": "指定雙方都知道的那座動物園",
+        "mark": "O"
+      },
+      {
+        "role": "名詞",
+        "token": "zoo",
+        "pos": "名詞 (Noun) — 具體單數名詞",
+        "func": "動物存在的地點，zoo 本身不需複數",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "There are many kinds of animals in the zoo.",
-        "note": "There are 後面接 many kinds of animals，複數對複數；句尾 in the zoo 用 the 指明是哪個場所，整句結構完整。"
+        "title": "There is 與 There are 混用（單複數不一致）",
+        "bad": "(X) There **is** many kinds of animals in the zoo.",
+        "ok": "(O) There **are** many kinds of animals in the zoo.",
+        "why": "There be 句型的 be 動詞，要看後面真正的主詞決定單複數，後面是 many kinds of animals（複數），所以必須用 are。台灣學生最常犯的錯是看到 There 就直接套 is，完全跳過主詞檢查。判斷法：把 There 暫時遮住，看剩下的主詞是單數（is）還是複數（are）。",
+        "exOkText": "(O) There **are** ten kinds of birds in the park.",
+        "exOkZh": "公園裡有十種鳥。",
+        "exBadText": "(X) There **is** ten kinds of birds in the park.",
+        "exBadNote": "錯誤：後接複數主詞 kinds，be 動詞應為 are"
       },
       {
-        "ok": false,
-        "text": "There is many kinds of animals in the zoo.",
-        "note": "be 動詞與後面的複數名詞不一致。many kinds of animals 是複數要用 are，把 is 改成 are，句子就正確了。"
+        "title": "many 後面的名詞忘記複數化",
+        "bad": "(X) There are many kinds of **animal** in the zoo.",
+        "ok": "(O) There are many kinds of **animals** in the zoo.",
+        "why": "many 只能用來修飾可數名詞的複數形。kinds of 後面的 animal 是可數名詞，前面又是 many 修飾 kinds，所以 animal 也必須變成複數 animals。學生常以為「動物」是總稱而保持單數，導致 kinds of animal。記得：只要前面是 many、a lot of、some，後面可數名詞一律複數。",
+        "exOkText": "(O) There are many kinds of **flowers** in the garden.",
+        "exOkZh": "花園裡有許多種花。",
+        "exBadText": "(X) There are many kinds of **flower** in the garden.",
+        "exBadNote": "錯誤：many 後的可數名詞必須是複數 flowers"
+      },
+      {
+        "title": "地點介系詞誤用（on / at 取代 in）",
+        "bad": "(X) There are many kinds of animals **on** the zoo.",
+        "ok": "(O) There are many kinds of animals **in** the zoo.",
+        "why": "in 表示在某一空間「裡面」，是表達地點最常用的介系詞；zoo 是有圍牆、有範圍的場所，動物是在裡面，所以用 in。on 是用在平面或表面（on the wall、on the table），at 是用在某一點或地理位置（at the zoo 指抵達現場）。本句描述「裡面有什麼」，固定用 in。",
+        "exOkText": "(O) There are many kinds of plants **in** the forest.",
+        "exOkZh": "森林裡有許多種類的植物。",
+        "exBadText": "(X) There are many kinds of plants **on** the forest.",
+        "exBadNote": "錯誤：在……之內應用 in，on 用於表面"
+      },
+      {
+        "title": "冠詞與複數一致性（a kind 與 kinds 混搭）",
+        "bad": "(X) There are **a** kinds of animals in the zoo.",
+        "ok": "(O) There are **many** kinds of animals in the zoo.",
+        "why": "a/an 是單數限定詞，只能接單數名詞 kinds 前面再加 a 就變成「一種」，與中文「許多種」矛盾。表示「許多種」要用 many / all / different / several 這類限定詞搭配複數 kinds。學生常把 many 誤寫成 a，結果變成 a kinds，語意和文法都錯。",
+        "exOkText": "(O) There are **several** kinds of monkeys in the zoo.",
+        "exOkZh": "動物園裡有好幾種猴子。",
+        "exBadText": "(X) There are **a** kinds of monkeys in the zoo.",
+        "exBadNote": "錯誤：a 只能接單數，複數 kinds 前面應用 several / many / all"
       }
     ],
     "traps": [
-      "There be 句型的主詞在後面，be 動詞要跟後面的名詞看齊。",
-      "many 之後一定要用複數名詞，漏掉 s 就整句扣分。",
-      "in the zoo 少了 the，單字再拼對也不算正確。",
-      "zoo 是可數名詞，前面需要 the、this 或 that 這類限定詞。"
+      "There be 陷阱：會考常把 There is / There are 放在選項中，判斷關鍵是先看 be 動詞後面第一個名詞（這裡是 many kinds）決定單複數，不要被前面的 There 迷惑。",
+      "複數連鎖陷阱：kinds of animals 本身已是複數，前面又加 many，後面的 animal 也要複數，形成「雙重複數」要求，最容易漏加 s。",
+      "地點介系詞陷阱：in the zoo / at the zoo 意思不同——in the zoo 是「在動物園裡面」，at the zoo 是「在動物園那裡」。描述園內內容時用 in。"
     ],
     "strategy": [
-      "寫完 There be 立刻回頭看後面的名詞，單數用 is、複數用 are。",
-      "打完單字後逐字檢查 s 有沒有漏，尤其是 animal 這類名詞。",
-      "練習時把 There is 與 There are 各造三句，再交叉改錯加深印象。",
-      "中文可以省略冠詞，英文不行；動物、場所名詞前先想 the。"
+      "寫作時先找主詞：讀到 There are，馬上用鉛筆框起後面的 many kinds of animals，確認 be 動詞和它一致。",
+      "複數檢查清單：many + kinds（複數） + of + animals（複數），三個 s 都要在才算正確。",
+      "地點口訣：在裡面用 in，在表面用 on，在地點用 at；動物關在園內，一定選 in。",
+      "朗讀整句並注意停頓：There are / many kinds of animals / in the zoo，唸順了就會自然注意到每一段都是複數。"
     ]
   },
   "How many kinds of animals can you see in this picture?": {
     "zh": "你在這張圖片裡看得到多少種動物？",
     "ipa": "/haʊ ˈmeni ˈkaɪndz əv ˈænɪ.məlz kən juː siː ɪn ðɪs ˈpɪkʃə/",
-    "headline": "How many 後接複數，問句要用 can you 的語序",
-    "items": [
+    "headline": "How many 引導的特殊疑問句，問數量要用 can 問「能不能看到」",
+    "structure": [
       {
-        "point": "疑問詞 How many",
-        "ok": "How many kinds of animals",
-        "bad": "How much kinds of animals",
-        "why": "How many 用來問可數名詞的數量，所以後面接複數的 kinds of animals。How much 只能問不可數名詞的量或問價錢，用在 animals 這種可數名詞前面一定錯。",
-        "exam": "會考常用 How many 與 How much 的配對題或改錯題。判斷方式：先看後面的名詞能不能一個一個數；animals 可以數，就一定要用 How many。"
+        "role": "疑問詞片語",
+        "token": "How many",
+        "pos": "疑問詞 (Question Word) + 限定詞 many",
+        "func": "對可數名詞複數提問「多少」，後面直接接名詞 kinds",
+        "mark": "O"
       },
       {
-        "point": "疑問句語序",
-        "ok": "How many kinds of animals can you see in this picture?",
-        "bad": "How many kinds of animals you can see in this picture?",
-        "why": "含 how many 的問句，後面要接一般疑問句語序，也就是問詞之後要立刻出現 can、is、do。少了 can 就變成陳述句，讀起來像在陳述事實，問句便不成立。",
-        "exam": "會考在選擇題或句子改寫題考問句語序。口訣：問詞開頭就把 be 動詞或助動詞拉到前面，寫完檢查有沒有 can、is、do。"
+        "role": "主詞",
+        "token": "kinds of animals",
+        "pos": "名詞片語 (Noun Phrase) — kinds 為中心詞",
+        "func": "被問的對象，說明要數的是「幾種動物」；中心詞是複數 kinds",
+        "mark": "O"
       },
       {
-        "point": "情態動詞 can",
-        "ok": "can you see",
-        "bad": "can you sees",
-        "why": "can 是情態動詞，後面的動詞一定要用原形 see，不能加 s，也不能改成 sees、saw 這類形式。can 本身就有能力的意思，後面直接接動詞原形。",
-        "exam": "會考改錯題常出現 can you sees、can you seeing 這類寫法。寫完 can 就默念原形 see，立刻檢查後面有沒有多加 s 或 -ing。"
+        "role": "情態動詞",
+        "token": "can",
+        "pos": "情態動詞 (Modal Verb)",
+        "func": "表示能力或可能性，「你能不能看到」，後面接原形動詞 see",
+        "mark": "O"
+      },
+      {
+        "role": "主詞",
+        "token": "you",
+        "pos": "代名詞 (Pronoun) — 人稱代名詞",
+        "func": "問話的對象，回答時也用 you 呼應",
+        "mark": "O"
+      },
+      {
+        "role": "實質動詞",
+        "token": "see",
+        "pos": "動詞 (Verb) — 原形",
+        "func": "本句的核心動作「看見」，因為前面是 can，必須用原形 see",
+        "mark": "O"
+      },
+      {
+        "role": "介系詞片語（地點）",
+        "token": "in this picture",
+        "pos": "介系詞片語 (Prepositional Phrase)",
+        "func": "說明看的地方，in 表示在這張圖片裡面，this 作指示形容詞",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "How many kinds of animals can you see in this picture?",
-        "note": "How many 後接複數 kinds of animals，can 後接原形 see，問詞之後立刻放 can，語序與單複數都正確。"
+        "title": "情態動詞後面誤用動詞的 -s 形式",
+        "bad": "(X) How many kinds of animals can you **sees** in this picture?",
+        "ok": "(O) How many kinds of animals can you **see** in this picture?",
+        "why": "情態動詞 can / will / must / should 後面的動詞一律用原形，不能加 -s、-ed，也不會隨主詞變化。即使主詞是 he、she 或單數名詞，can 後面也永遠是 see 不是 sees。這是國中會考的高頻錯點，學生常因中文「看得見」語感而多加 s。口訣：can 後面是原形，永遠不加 s。",
+        "exOkText": "(O) How many books can you **read** in a minute?",
+        "exOkZh": "你一分鐘能讀多少本書？",
+        "exBadText": "(X) How many books can you **reads** in a minute?",
+        "exBadNote": "錯誤：can 後面的動詞必須用原形 read"
       },
       {
-        "ok": false,
-        "text": "How many kind of animals can you see in this picture?",
-        "note": "錯在 kind 少了 s。How many 問的是種類數，後面要用複數的 kinds of animals；把 kind 改成 kinds，句子就正確。"
+        "title": "How many 與 How much 混淆（可數與不可數）",
+        "bad": "(X) How **much** kinds of animals can you see?",
+        "ok": "(O) How **many** kinds of animals can you see?",
+        "why": "How many 用來問可數名詞的數量，後面接可數名詞複數（kinds、animals、books）；How much 用來問不可數名詞的量或問價格（How much water、How much is it）。kinds 和 animals 都是可數名詞的複數，所以只能配 many。學生常因中文「多少」不分而混用，判斷法：先看後面的名詞能不能一個一個數，能數就用 many。",
+        "exOkText": "(O) How **many** students are there in your class?",
+        "exOkZh": "你班上有多少位學生？",
+        "exBadText": "(X) How **much** students are there in your class?",
+        "exBadNote": "錯誤：students 是可數名詞複數，應用 How many"
+      },
+      {
+        "title": "疑問句語序錯誤（陳述句語序）",
+        "bad": "(X) How many kinds of animals you can see in this picture?",
+        "ok": "(O) How many kinds of animals can you see in this picture?",
+        "why": "特殊疑問句的語序是「疑問詞 + 助動詞/can + 主詞 + 動詞」，也就是 can 一定要放在 you 前面。本句是「你（can）看得到多少種」，所以順序是 How many…can you see，不能寫成 you can see。學生常把疑問句和敘述句的語序搞混，考試選擇題常拿 this 和 that 來設陷阱。",
+        "exOkText": "(O) How **many colors can you see** in the picture?",
+        "exOkZh": "你在這張圖片裡看得到多少種顏色？",
+        "exBadText": "(X) How **many colors you can see** in the picture?",
+        "exBadNote": "錯誤：疑問句語序應為 can you see，不能把 can 放到主詞後面"
+      },
+      {
+        "title": "指示形容詞誤用（this / these 混用）",
+        "bad": "(X) How many kinds of animals can you see in **these** picture?",
+        "ok": "(O) How many kinds of animals can you see in **this** picture?",
+        "why": "this 是單數指示形容詞，後面要接單數名詞 picture；these 是複數，後面要接複數名詞 pictures。本句說的是「這張圖片」，用單數 picture，所以前面固定是 this，不能用 these。學生常因中文「這些圖片」而誤用 these。判斷法：this/that 接單數，these/those 接複數，看名詞決定用哪一組。",
+        "exOkText": "(O) How many kinds of animals can you see in **this** book?",
+        "exOkZh": "你在這本書裡看得到多少種動物？",
+        "exBadText": "(X) How many kinds of animals can you see in **these** book?",
+        "exBadNote": "錯誤：book 是單數，指示形容詞應為 this，不是 these"
       }
     ],
     "traps": [
-      "How many 只能搭配可數名詞複數，animals 前的 s 不能漏。",
-      "問詞開頭的句子一定要有 can、is、do，不能用陳述句語序。",
-      "can 後面的動詞用原形，see 不加 s 也不加 -ing。",
-      "this picture 已經有 this，後面不要再加 the。"
+      "How many 陷阱：How many 後面必定接可數名詞複數，本句為 kinds（複數），若看到 How many kind 這種選項就直接排除。",
+      "can 語序陷阱：會考選擇題常把 can you see 和 you can see 互換當錯誤選項，記住 can 一定在主詞 you 的前面。",
+      "指示形容詞陷阱：this picture / that picture 才是單數，these/those pictures 才是複數，題目中的 picture 是單數，答案鎖定 this。"
     ],
     "strategy": [
-      "寫問句時依序寫 How many、複數名詞、最後放 can you see。",
-      "唸出聲檢查：many 後面聽得到 -z 才是複數，聽不到就是漏 s。",
-      "把問句和答句一起背，例如 How many kinds of animals 對應 Six。",
-      "改錯時先圈出 How many，再檢查後面名詞的單複數。"
+      "複習公式：「How many + 複數名詞 + can you + 動詞原形 + …?」，套公式就不會忘記 can 的位置。",
+      "回答也要複數：被問 How many kinds 時，答案要用數字加複數，例如 I can see three kinds.（三種），不要說 three kind。",
+      "檢查兩個標點：疑問句開頭 How many、結尾問號「?」，兩者缺一不可。",
+      "練習替換：把 picture 換成 book、map、window，套同一個句型，練習 this 和單數名詞的搭配。"
     ]
   },
   "My brother is interested in animals.": {
     "zh": "我弟弟對動物感興趣。",
     "ipa": "/maɪ ˈbrʌðər ɪz ˈɪntrəstɪd ɪn ˈænɪ.məlz/",
-    "headline": "be interested in 後面接名詞，不要漏 be",
-    "items": [
+    "headline": "be interested in 是固定片語，in 不能省略",
+    "structure": [
       {
-        "point": "interested 與 interesting",
-        "ok": "My brother is interested in animals.",
-        "bad": "My brother is interesting in animals.",
-        "why": "interested 是感到有興趣的，當形容詞描述人的心情，前面要有 be 動詞；interesting 是有趣的，用來描述事物本身。這裡的主詞是 brother，應該說他感到有興趣，而不是他很有趣。",
-        "exam": "會考常以選擇題考 interested 與 interesting 的差別。判斷法：接在 be 動詞後面描述人的心情用 interested；放在名詞前描述事物用 interesting。"
+        "role": "所有格限定詞",
+        "token": "My",
+        "pos": "限定詞 (Determiner) — 物主代詞",
+        "func": "表示「我的」，後面接單數名詞 brother，說明是誰的哥哥／弟弟",
+        "mark": "O"
       },
       {
-        "point": "be 動詞不能漏",
-        "ok": "My brother is interested in animals.",
-        "bad": "My brother interested in animals.",
-        "why": "interested 前面一定要有 be 動詞 is、am 或 are。中文說對動物感興趣可以省略動詞，但英文的 interested 是形容詞，必須靠 be 動詞撐起整個句子，漏掉就不成句。",
-        "exam": "會考句子改寫與翻譯常在這裡扣分。練習時把中文的「對……感興趣」一律翻成 be interested in，不要只寫 interested 就以為完成。"
+        "role": "主詞",
+        "token": "brother",
+        "pos": "名詞 (Noun) — 單數名詞",
+        "func": "句子的主詞，指「我弟弟」，因為是單數所以 be 動詞用 is",
+        "mark": "O"
       },
       {
-        "point": "介系詞 in 加名詞",
-        "ok": "interested in animals",
-        "bad": "interested in animal",
-        "why": "be interested in 裡的 in 是介系詞，後面接名詞或動名詞。animals 是可數名詞複數，表示對動物這一整類感到有興趣，所以不能寫成單數 animal。",
-        "exam": "會考常考 be interested in 後面接名詞或 V-ing，例如 be interested in animals、be interested in reading；接動詞一定要加 -ing。"
+        "role": "be 動詞",
+        "token": "is",
+        "pos": "動詞 (Verb) — be 動詞",
+        "func": "與單數主詞 brother 呼應，構成 be interested in 的片語",
+        "mark": "O"
       },
       {
-        "point": "主詞動詞一致",
-        "ok": "My brother is interested in animals.",
-        "bad": "My brother am interested in animals.",
-        "why": "My brother 是第三人稱單數，be 動詞要用 is。學生常受 I am 影響，把 brother 也配上 am；但 brother 對應 is，只有複數的 brothers 才用 are。",
-        "exam": "會考在翻譯題考 My brother、My sister、They 搭配的 be 動詞。口訣：I 用 am，他或單數名詞用 is，you、we、they 與複數用 are。"
+        "role": "形容詞片語",
+        "token": "interested in",
+        "pos": "片語 (Phrasal Adjective) — 固定的形容詞片語",
+        "func": "表示「對……感興趣」，interested 後面一定要用介系詞 in 連接感興趣的對象",
+        "mark": "O"
+      },
+      {
+        "role": "受詞",
+        "token": "animals",
+        "pos": "名詞 (Noun) — animal 的複數",
+        "func": "作為介系詞 in 的受詞，表示「對動物感興趣」；這裡談多種動物，所以用複數",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "My brother is interested in animals.",
-        "note": "主詞 My brother 是單數，用 is；interested 後面接介系詞 in 與名詞 animals，結構完整，是標準寫法。"
+        "title": "片語遺漏介系詞（interested 少了 in）",
+        "bad": "(X) My brother is interested **animals**.",
+        "ok": "(O) My brother is interested **in** animals.",
+        "why": "interested 這個字本身不能單獨接名詞，中文「感興趣」在翻譯成英文時必須搭配 be interested in 這個固定片語，in 絕對不能省略。學生常受中文「他對動物有興趣」影響，把英文當成 interested animals 這種直接對譯。口訣：看到 interested，後面立刻補 in，這是必背片語。",
+        "exOkText": "(O) My sister is **interested in** science.",
+        "exOkZh": "我妹妹對科學感興趣。",
+        "exBadText": "(X) My sister is **interested** science.",
+        "exBadNote": "錯誤：interested 後面一定要加介系詞 in"
       },
       {
-        "ok": false,
-        "text": "My brother is interested on animals.",
-        "note": "固定搭配是 be interested in，不是 on。表示對某事物感興趣一律用 in，把 on 改成 in，句子就正確了。"
+        "title": "介系詞誤用（at / on / with 取代 in）",
+        "bad": "(X) My brother is interested **at** animals.",
+        "ok": "(O) My brother is interested **in** animals.",
+        "why": "be interested 的固定搭配就是 in，意思相當於中文的「對……感興趣」，介系詞只能用 in。at 是用在時間或地點（at school、at ten），on 用在表面上或特定主題日期（on the desk），with 是和某人一起。學生常在介系詞選擇題中猶豫，判斷法：這是背下來的固定片語，不需推理，be interested 後面永遠是 in。",
+        "exOkText": "(O) Many students are interested **in** English songs.",
+        "exOkZh": "許多學生對英文歌曲感興趣。",
+        "exBadText": "(X) Many students are interested **on** English songs.",
+        "exBadNote": "錯誤：固定片語為 be interested in，介系詞應為 in"
+      },
+      {
+        "title": "be 動詞與主詞不一致（用 are 取代 is）",
+        "bad": "(X) My brother **are** interested in animals.",
+        "ok": "(O) My brother **is** interested in animals.",
+        "why": "本句主詞是 brother（單數），be 動詞必須用 is，不是 are。學生有時看到後面的 animals 是複數，就誤以為整句要用 are。判斷口訣：be 動詞只看它前面最近的那個主詞，My brother 是單數，animals 只是 in 的受詞，不影響 be 動詞的選擇。",
+        "exOkText": "(O) My friend **is** interested in drawing.",
+        "exOkZh": "我的朋友對畫畫感興趣。",
+        "exBadText": "(X) My friend **are** interested in drawing.",
+        "exBadNote": "錯誤：主詞 friend 是單數，be 動詞應為 is"
+      },
+      {
+        "title": "字形與發音錯誤（interest 誤寫為 interested）",
+        "bad": "(X) My brother is **interest** in animals.",
+        "ok": "(O) My brother is **interested** in animals.",
+        "why": "主詞 brother 前面有 be 動詞 is，後面要用形容詞，必須寫 interested（-io 結尾，發音 /ɪnstrestɪd/），不能寫原形動詞或名詞 interest。interested 表示「感到興趣的」，後面接介系詞 in；interest 是名詞或動詞原形，後面不能直接接 in。寫作或克漏字測驗常考這個字形，記住 -ed 結尾的 interested。",
+        "exOkText": "(O) Tom is **interested** in dinosaurs.",
+        "exOkZh": "湯姆對恐龍感興趣。",
+        "exBadText": "(X) Tom is **interest** in dinosaurs.",
+        "exBadNote": "錯誤：be 動詞後要用形容詞 interested，不能用原形 interest"
       }
     ],
     "traps": [
-      "interested 描述人的心情，interesting 描述東西有趣，兩者不能混用。",
-      "be 動詞不能漏掉，只寫 interested 不成句子。",
-      "be interested in 是固定搭配，in 不可改成 on 或 at。",
-      "My brother 是單數，be 動詞用 is，不是 am。"
+      "片語完整性陷阱：interested 這個形容詞的 -ed 不能省，也不能單獨使用；會考單字題常在 interested / interesting 之間設陷阱，要分清楚「感到興趣的」和「有趣的」。",
+      "介系詞搭配陷阱：interested in / worried about / good at / famous for 這類固定搭配是會考選擇題最愛考的點，介系詞一錯整題就錯。",
+      "單複數判斷陷阱：看到後面的 animals 是複數不代表 be 動詞用 are，be 動詞永遠只由前面的主詞 My brother 決定。"
     ],
     "strategy": [
-      "把 be interested in 當成一個整塊背，後面直接接名詞或 V-ing。",
-      "寫完 interested 就檢查前面有沒有 be、後面有沒有 in。",
-      "把 interested 與 interesting 各造三句，練成反射區分。",
-      "翻譯「對……感興趣」時，固定寫成 be interested in 加名詞。"
+      "背下固定片語：be interested in = 對……感興趣，be good at = 擅長，be famous for = 以……聞名，整組記憶不單獨記單字。",
+      "寫作時自我檢查：寫完 interested，立刻確認後面有沒有 in 這個字母，漏掉就立刻補上。",
+      "分辨字形：interested（-ed 結尾，形容「感到興趣的」）對 interesting（-ing 結尾，形容「有趣的」事物）。",
+      "替換練習：把 animals 換成 sports、music、science，練習同一個句型，強化 interested in 的固定用法。"
     ]
   },
   "The elephant is bigger than the horse.": {
     "zh": "大象比馬大。",
     "ipa": "/ðiː ˈelɪfənt ɪz ˈbɪɡər ðæn ðə hɔːs/",
-    "headline": "比較級 bigger 後接 than，前面別再加 more",
-    "items": [
+    "headline": "比較級 big 的 -er 加在 than 前，構成「比……更」的比較",
+    "structure": [
       {
-        "point": "比較級加 than",
-        "ok": "The elephant is bigger than the horse.",
-        "bad": "The elephant is more bigger than the horse.",
-        "why": "bigger 已經是 big 的比較級，前面不能再加 more，否則變成重複比較。中文的比較級沒有這個字，但英文的 more 是給多音節字用的，短字比較級直接加 -er。",
-        "exam": "會考在改錯題最常出現 more 加比較級。口訣：短字用 -er，長字才用 more，例如 big 變 bigger，beautiful 變 more beautiful。"
+        "role": "冠詞",
+        "token": "The",
+        "pos": "定冠詞 (Definite Article)",
+        "func": "用於單數可數名詞前，特指那隻大象，這裡是本句的主詞",
+        "mark": "O"
       },
       {
-        "point": "big 變 bigger 的拼法",
-        "ok": "bigger",
-        "bad": "biger",
-        "why": "big 的結尾是單一子音字母且是單音節字，加 -er 時中間的子音要重複，所以寫成 bigger。台灣學生常只寫一個 g，變成 biger，拼字就錯了。",
-        "exam": "會考選擇題或聽力測驗常考比較級拼字。規則：單音節字以 g、l、r、m、n 結尾時要雙寫，如 big 變 bigger、hot 變 hotter。"
+        "role": "主詞",
+        "token": "elephant",
+        "pos": "名詞 (Noun) — 單數名詞",
+        "func": "比較的主體，表示大象，因為是單數所以 be 動詞用 is",
+        "mark": "O"
       },
       {
-        "point": "定冠詞 the 加單數可數名詞",
-        "ok": "The elephant is bigger than the horse.",
-        "bad": "The elephant is bigger than horse.",
-        "why": "elephant 與 horse 都是單數可數名詞，前面要用 the 指出是哪一隻。比較兩者時兩邊的名詞都要加 the，中文可以省略，但英文這裡不能漏。",
-        "exam": "會考在翻譯或閱讀理解檢查細節。the 不是裝飾，比較句裡兩邊的單數名詞前都要加 the，否則句子不完整會被判錯。"
+        "role": "be 動詞",
+        "token": "is",
+        "pos": "動詞 (Verb) — be 動詞",
+        "func": "與單數主詞 elephant 呼應，連接主詞和比較級部分",
+        "mark": "O"
       },
       {
-        "point": "比較級不能直接用原級",
-        "ok": "The elephant is bigger than the horse.",
-        "bad": "The elephant is big than the horse.",
-        "why": "看到 than 就代表前面必須是比較級或 more、fewer 之類的比較說法，不能用原級 big。big 是本來的大小，bigger 才是比誰大，兩者語意完全不同。",
-        "exam": "會考常在改錯與句子合併題出現。寫比較句時先看到 than，再回頭把 be 動詞後面的字改成比較級，形成固定框架。"
+        "role": "比較級",
+        "token": "bigger",
+        "pos": "形容詞 (Adjective) — big 的比較級",
+        "func": "表示「更大的」，是本句的動詞部分，說明大象的大小",
+        "mark": "O"
+      },
+      {
+        "role": "連接詞",
+        "token": "than",
+        "pos": "連接詞 (Conjunction) — 比較級專用連接詞",
+        "func": "連接比較級和被比較的對象，意思是「比」，後面接比較基準 the horse",
+        "mark": "O"
+      },
+      {
+        "role": "比較對象",
+        "token": "the horse",
+        "pos": "名詞片語 (Noun Phrase) — 單數名詞 horse",
+        "func": "被比較的對象，作為 than 的受詞，horse 是單數，前面加 the 保持對稱",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "The elephant is bigger than the horse.",
-        "note": "be 加比較級 bigger 加 than 是一組；兩個單數名詞前都有 the，句型完整，意思就是大象比馬大。"
+        "title": "比較級字形錯誤（忘記加 -er 或用 more）",
+        "bad": "(X) The elephant is **big** than the horse.",
+        "ok": "(O) The elephant is **bigger** than the horse.",
+        "why": "短形容詞（big、tall、small、short、young、old、fast、cheap 等）要變成比較級時，直接在原字後加 -er；只有長形容詞才用 more 加原級（如 more beautiful）。學生常忘記加 -er，或習慣用 more 而把短形容詞也加上 more。判斷法：big 這種單音節短字，直接加 -er；而且加 -er 之後一定要搭配 than。",
+        "exOkText": "(O) My schoolbag is **heavier** than yours.",
+        "exOkZh": "我的書包比你的重。",
+        "exBadText": "(X) My schoolbag is **more heavy** than yours.",
+        "exBadNote": "錯誤：重單音節形容詞直接加 -er，不加 more"
       },
       {
-        "ok": false,
-        "text": "The elephant is more bigger than the horse.",
-        "note": "bigger 本身已經是比較級，前面不能再加 more，屬於重複比較。刪掉 more 只留 bigger，句子就正確。"
+        "title": "比較級與最高級混用（the biggest）",
+        "bad": "(X) The elephant is **the biggest** than the horse.",
+        "ok": "(O) The elephant is **bigger** than the horse.",
+        "why": "bigger 是比較級，表示「比某個東西更」，後面接 than；the biggest 是最高級，表示「三者以上中最」，後面接 in 或 of 範圍（如 the biggest in the zoo），絕對不能和 than 搭配。學生常以為「比」就要加 the，但 the 只能用於最高級。判斷法：看到 than 就是比較級，沒有 than 就是最高級。",
+        "exOkText": "(O) An elephant is **taller** than a horse.",
+        "exOkZh": "大象比馬高。",
+        "exBadText": "(X) An elephant is **the tallest** than a horse.",
+        "exBadNote": "錯誤：最高級不能搭配 than，應使用比較級 taller"
+      },
+      {
+        "title": "be 動詞與主詞不一致（用 are 取代 is）",
+        "bad": "(X) The elephant **are** bigger than the horse.",
+        "ok": "(O) The elephant **is** bigger than the horse.",
+        "why": "主詞是 elephant（單數），be 動詞必須用 is。學生有時看到後面的 horse 以為是複數，或忘記 elephant 是單數而誤用 are。判斷口訣：be 動詞只由前面的主詞 The elephant 決定，the horse 只是被比較的對象，不影響 be 動詞。",
+        "exOkText": "(O) The tiger **is** stronger than the dog.",
+        "exOkZh": "老虎比狗強壯。",
+        "exBadText": "(X) The tiger **are** stronger than the dog.",
+        "exBadNote": "錯誤：主詞 tiger 是單數，be 動詞應為 is"
+      },
+      {
+        "title": "最高級遺漏 the 或比較級誤用 the",
+        "bad": "(X) The elephant is **bigger** the horse. ／ (X) The elephant is **the bigger** than the horse.",
+        "ok": "(O) The elephant is **bigger** than the horse.",
+        "why": "比較級前面不加 the，後面一定要有 than；最高級前面才需要 the，後面用 in/of 交代範圍。學生常把最高級的「冠詞加在前面」的規則誤套到比較級上，寫出 the bigger than，或干脆漏掉 than 變成 bigger the horse。判斷法：比較級三要素——big 變 bigger、有 than、前面沒有 the。",
+        "exOkText": "(O) A cat is **smaller** than a dog.",
+        "exOkZh": "貓比狗小。",
+        "exBadText": "(X) A cat is **the smaller** than a dog.",
+        "exBadNote": "錯誤：比較級前不加 the，且一定要搭配 than"
       }
     ],
     "traps": [
-      "比較級前面不能再加 more，more 加比較級是會考常見錯答。",
-      "bigger 的 g 要寫兩次，big 變 bigger 不能少一個字母。",
-      "than 前面的字一定是比較級，看到 than 就回頭檢查。",
-      "比較句裡兩邊的單數名詞都要加 the，不能只加一個。"
+      "比較級搭配陷阱：比較級（bigger）一定搭配 than；最高級（the biggest）搭配 in/of，兩者不能混用，這是會考選擇題最常設的陷阱。",
+      "短字元比較級陷阱：big、tall、hot 這類單音節短形容詞要加 -er（bigger、taller、hotter），絕對不能用 more + 原級。",
+      "冠詞使用陷阱：the 只能加在最高級前面（the biggest），比較級前不加 the；本句的 the elephant 和 the horse 的 the 是各自名詞的定冠詞，與比較級無關。"
     ],
     "strategy": [
-      "寫比較句時先套公式：主詞加 be 加比較級加 than 加對象。",
-      "打完 -er 後回頭看有沒有漏掉要重複的子音字母。",
-      "把 more 的用法分兩類記：短字用 -er，長字用 more，中間不要混。",
-      "改錯時看到 than 先畫線，再確認前面是比較級而不是原級。"
+      "記住公式：「主詞 + be + 短形容詞 + er + than + 對象」，例如 The elephant is bigger than the horse，一步到位。",
+      "背誦短形容詞比較級清單：big→bigger、tall→taller、hot→hotter、small→smaller、young→younger、fast→faster，看到就自動加 -er。",
+      "檢查三要素：加了 -er 嗎？有 than 嗎？前面有多餘的 the 嗎？三項都對才安全。",
+      "朗讀整句：The elephant is bigger than the horse.，把重音落在 bigger 和 than 上，用語感輔助記憶比較級的語法結構。"
     ]
   },
   "She has three pets at home.": {
     "zh": "她家裡有三隻寵物。",
     "ipa": "/ʃiː hæz θriː pets ət həʊm/",
-    "headline": "第三人稱單數用 has，寵物複數別漏 s",
-    "items": [
+    "headline": "三單 has 遇上複數 pets：主詞決定動詞，數詞決定名詞",
+    "structure": [
       {
-        "point": "主詞動詞一致",
-        "ok": "She has",
-        "bad": "She have",
-        "why": "主詞 She 是第三人稱單數，現在式動詞要加 -s/-es，所以用「has」。這是國中生最常錯的冠軍：中文「她有」不分人稱，英文卻一定要看主詞。口訣是 I/you/they/it 用「have」，he/she/it 單數用「has」。",
-        "exam": "會考常在單選或翻譯題送出「(X) She have three pets.」這種選項；要立刻檢查主詞是誰，三單就自動改成 has。"
+        "role": "主詞",
+        "token": "She",
+        "pos": "代名詞 (Pronoun) — 第三人稱單數",
+        "func": "句子的主語，指「她」；因為是第三人稱單數，決定後面的動詞要用 has",
+        "mark": "O"
       },
       {
-        "point": "名詞複數",
-        "ok": "three pets",
-        "bad": "three pet",
-        "why": "前面有數詞 three（三隻），表示數量超過一隻，pet 一定要變成複數「pets」。中文常用「三隻寵物」省略「隻」字，英文卻不能省掉 -s。類似的還有「three dogs」「three cats」。",
-        "exam": "翻譯題出現「兩隻狗」「三本書」時，複數 -s 幾乎是必得分點；忘記加 s 即使字面意思對也會被扣分。"
+        "role": "動詞",
+        "token": "has",
+        "pos": "動詞 (Verb) — have 的第三人稱單數現在式",
+        "func": "表示「有、擁有」，是本句的動詞；主詞是 She，所以用 has",
+        "mark": "O"
       },
       {
-        "point": "介詞 at",
-        "ok": "at home",
-        "bad": "in home ／ to home",
-        "why": "「在家」是固定說法「at home」，home 在這裡當副詞用，前面不加任何介詞的 the，也不加 in、to。學生常受中文「在家裡」影響，硬塞一個介詞進去，這是典型中式英文。",
-        "exam": "題目若出現「他在家」翻譯題，標準答案固定是「at home」；改成「in home」一定被扣分。"
+        "role": "數詞",
+        "token": "three",
+        "pos": "數詞 (Numeral)",
+        "func": "表示數量「三」，後面的可數名詞一定要改成複數",
+        "mark": "O"
       },
       {
-        "point": "基數詞 + 複數名詞",
-        "ok": "three pets",
-        "bad": "threes pet",
-        "why": "three 是基數詞，本身已經表達確切數量，後面名詞要接「複數原形」，不能把 -s 搬到數詞上。英語的複數變化只發生在名詞本身：「three books」「two cats」「five apples」。",
-        "exam": "會考單選有時把「(X) threes books」當錯誤選項，測的就是「複數標記在名詞上」這個觀念。"
+        "role": "受詞",
+        "token": "pets",
+        "pos": "名詞 (Noun) — pet 的複數",
+        "func": "has 的受詞，表示「寵物」；因為前面是 three（三隻），必須搭配複數 pets",
+        "mark": "O"
+      },
+      {
+        "role": "片語",
+        "token": "at home",
+        "pos": "片語 (Phrase) — home 為副詞性用法",
+        "func": "表示「在家裡」，at 是固定介系詞；此處 home 前面不加 the，也不能把 at 換成 in",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "She has three pets at home.",
-        "note": "She（第三人稱單數）配 has，three 後面的 pet 變成複數 pets，固定用法 at home 一字不改，四個得分點全部到位。"
+        "title": "第三人稱單數動詞用錯（have 忘記變 has）",
+        "bad": "(X) She have three pets at home.",
+        "ok": "(O) She has three pets at home.",
+        "why": "have 遇到 he、she、it 這類第三人稱單數主詞時，必須變成 has。台灣學生常在口說或快速作答時忘記變化，尤其容易受中文「她有寵物」沒有動詞變化的影響，直接說成 have。判斷法：把主詞換成 I / You / They，動詞就變回 have；換成 He / She / It，動詞一定要變 has。",
+        "exOkText": "(O) Lily **has** a dog and two cats.",
+        "exOkZh": "莉莉有一隻狗和兩隻貓。",
+        "exBadText": "(X) Lily **have** a dog and two cats.",
+        "exBadNote": "錯誤：主詞 Lily 是第三人稱單數，have 要變成 has"
       },
       {
-        "ok": false,
-        "text": "She have three pet at home.",
-        "note": "錯在兩處：have 要改 has；pet 要改 pets。中英文最大的差異就在這裡——英文的動詞與名詞都要跟著「單複數」走。"
+        "title": "數詞後面的可數名詞要改成複數",
+        "bad": "(X) She has three pet at home.",
+        "ok": "(O) She has three pets at home.",
+        "why": "數詞 three 本身就表示「三隻」，後面的可數名詞一定要用複數。台灣學生最常忘記加 s，尤其在克漏字測驗中寫成 three pet 就直接丟掉一分。判斷口訣：one 用單數，two、three、many、some 之後全部用複數；看到數字就先決定名詞的形狀。",
+        "exOkText": "(O) My uncle **has five bikes** in his garage.",
+        "exOkZh": "我叔叔的車庫裡有五輛腳踏車。",
+        "exBadText": "(X) My uncle **has five bike** in his garage.",
+        "exBadNote": "錯誤：five 之後的可數名詞要用複數 bikes"
+      },
+      {
+        "title": "at home 是固定片語，不能改成 in home",
+        "bad": "(X) She has three pets in home. ／ (X) She has three pets at the home.",
+        "ok": "(O) She has three pets at home.",
+        "why": "「在家裡」固定說 at home，這裡 home 當副詞用，前面不加 the，也不能把 at 換成 in 或 on。台灣學生受中文「在家」直譯影響會寫 in home；另一種常錯是加上定冠詞變 at the home。只有當 home 後面接所有物或特定房子時，才用 in my home、at her home。",
+        "exOkText": "(O) My cat stays **at home** on rainy days.",
+        "exOkZh": "下雨天我的貓都待在家裡。",
+        "exBadText": "(X) My cat stays **in home** on rainy days.",
+        "exBadNote": "錯誤：「在家裡」是 at home，不能用 in home"
+      },
+      {
+        "title": "數詞與名詞之間不插 of（three of pets）",
+        "bad": "(X) She has three of pets at home.",
+        "ok": "(O) She has three pets at home. ／ (O) She has three of her pets at home.",
+        "why": "「數詞 + 複數名詞」要直接相鄰，中間不需要加 of。學生有時誤以為 of 是「所有的」而把它插進去，寫成 three of pets。of 只能出現在「數詞 of 所有格或名詞」之間，表示其中幾個，例如 three of her pets（三隻她的寵物）。",
+        "exOkText": "(O) She has **three of her pets** at home.",
+        "exOkZh": "她家裡有她的三隻寵物。",
+        "exBadText": "(X) She has **three of pets** at home.",
+        "exBadNote": "錯誤：of 後面要有「所有物或名詞」才有作用，不能直接接 pets"
       }
     ],
     "traps": [
-      "看到 She / He / It 就要反射性把 have 換成 has。",
-      "數詞大於一（two、three、four…）時，後面的可數名詞複數 -s 不能漏。",
-      "at home 是固定用法，前面不加 in、to、at 裡的任何一個字。",
-      "複數的 -s 加在名詞上，不是加在數詞上（不是 threes）。"
+      "三單 vs 複數陷阱：題組常把 She has ... 與 They have ... 放在一起考，答題前先圈主詞，再決定 has 或 have。",
+      "數詞 + 名詞陷阱：three pets、two cats、many books 一律用複數，選填題常在 pet 與 pets 之間設選項。",
+      "at home 陷阱：閱讀測驗會出現 in the home、at my house 的變體，看 home 前有無所有格或 the，就能決定用 in 還是 at。"
     ],
     "strategy": [
-      "打字前先用括號在旁邊標註「She → has」「three → pets」，打完再刪掉標記。",
-      "遇到數詞就自動檢查後面名詞有沒有 -s，形成肌肉記憶。",
-      "把 has / have 寫成一組對照小卡，每天唸三遍主詞對應表。"
+      "寫作時先圈主詞：看到 She / He / It 就立刻把 have 改寫成 has，確認後再往下寫。",
+      "數字與名詞綁在一起：three 一出現，馬上補上 pets，養成「數字一出、名詞就變複數」的習慣。",
+      "把 at home 當成單一單位背下來，寫作時不要隨意加 the，也不要臨時替換介系詞。",
+      "大聲朗讀正確句兩次（She has three pets at home.），用嘴感受 has 尾音的 /z/，比只看字更容易記住。"
     ]
   },
   "These animals are endangered.": {
     "zh": "這些動物是瀕危的。",
     "ipa": "/ðiːz ˈænɪ.məlz ɑːr ɪnˈdaʒəd/",
-    "headline": "These 配複數 are，endangered 是形容词不是動詞",
-    "items": [
+    "headline": "These、animals、are 呼應同一個複數，endangered 是 be 後面的表語",
+    "structure": [
       {
-        "point": "指示代名詞 + be 動詞一致",
-        "ok": "These animals are",
-        "bad": "These animal is ／ (X) This animals are",
-        "why": "These 是複數指示代名詞，後面的名詞 animals 也要用複數，配上複數的 be 動詞 are。若改成「This animals are」，代名詞與名詞單複數打架，一樣是錯的。",
-        "exam": "會考翻譯「這些動物…」時，These 與 are 是一個綁定組合；單選題常拿「(X) This animals are」當誘餌，測單複數一致性。"
+        "role": "指示代名詞",
+        "token": "These",
+        "pos": "代名詞 (Pronoun) — 指示代詞的複數形",
+        "func": "指「這些」，是本句的主詞；因為是複數，後面的 be 動詞必須用 are",
+        "mark": "O"
       },
       {
-        "point": "endangered 的詞性",
-        "ok": "are endangered",
-        "bad": "are dangerended ／ endangered（誤當動詞）",
-        "why": "endangered 是「瀕危的」，是形容詞，後面接名詞時前面要加 be 動詞：「endangered animals」（瀕危的動物）。它不是「使…瀕危」的意思，danger 才會嚇人。學生常把它誤以為跟 danger 同義。",
-        "exam": "會考字義題愛考 endangered（瀕危的）與 dangerous（危險的）差別：前者指數量稀少、快絕種，後者只是有危險性。"
+        "role": "主詞中心詞",
+        "token": "animals",
+        "pos": "名詞 (Noun) — animal 的複數",
+        "func": "與 These 呼應的複數名詞，說明「這些」是哪些東西",
+        "mark": "O"
       },
       {
-        "point": "be 動詞後接形容詞",
-        "ok": "are endangered（be + 形容詞）",
-        "bad": "are endangering / are endangered by",
-        "why": "這句是「這些動物是瀕危的」，結構是 be 動詞 + 形容詞，後面接原級片語。學生容易在後面亂加 by、to 之類的介詞，或誤用進行式「are endangering」（正在使…瀕危），語意完全跑掉。",
-        "exam": "閱讀測驗裡的告示牌常寫「(O) This animal is endangered.」，考點就是「be 動詞 + 形容詞」這個固定結構。"
+        "role": "be 動詞",
+        "token": "are",
+        "pos": "動詞 (Verb) — be 動詞的複數現在式",
+        "func": "和主詞呼應，表示「是」，後面接受詞或表語",
+        "mark": "O"
       },
       {
-        "point": "單複數詞尾",
-        "ok": "These animals",
-        "bad": "These animal（複數漏 s）",
-        "why": "中文「這些動物」聽起來像單數，英文卻一定要翻成複數：「These animals are」三個部分要一致。動物是可數名詞，數量大於一，複數 -s 不能省。",
-        "exam": "翻譯題把「這些動物」誤寫成 these animal，會直接影響動詞要選 are 還是 is，是連動失分。"
+        "role": "表語",
+        "token": "endangered",
+        "pos": "形容詞 (Adjective)",
+        "func": "be 動詞後的表語，表示「瀕危的、面臨滅絕的」；雖以 -ed 結尾，但這裡是形容詞而不是動詞過去式",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "These animals are endangered.",
-        "note": "These（複數）＋ animals（複數）＋ are（複數）三者一致，be 動詞後接形容詞「endangered」，結構完整、字義正確。"
+        "title": "指示代名詞與 be 動詞不一致（is / are）",
+        "bad": "(X) These animals is endangered.",
+        "ok": "(O) These animals are endangered.",
+        "why": "These 是複數指示代詞，be 動詞就要用 are；is 只能配單數主詞，例如 This animal is endangered.。台灣學生常因中文沒有單複數變化而不加區分。口訣：主詞是 these / they / those 或可數名詞複數就用 are；看到 this / it / a 開頭的單數才用 is。",
+        "exOkText": "(O) **These tigers are** endangered.",
+        "exOkZh": "這些老虎是瀕危的。",
+        "exBadText": "(X) **These tigers is** endangered.",
+        "exBadNote": "錯誤：These 是複數指示代詞，be 動詞要用 are"
       },
       {
-        "ok": false,
-        "text": "These animals are dangerous.",
-        "note": "dangerous 是「危險的」，意思變成「這些動物很危險」，和原句的「瀕危、快絕種」不同。考 endangered 與 dangerous 的差異時要特別小心。"
+        "title": "be 動詞後誤用動詞：endangered 當成動作",
+        "bad": "(X) These animals are endanger. ／ (X) These animals are endangering.",
+        "ok": "(O) These animals are endangered.",
+        "why": "are 後面要接「說明狀態的」形容詞，endangered 在這裡就是形容詞。學生常把它誤當成 protect 的動詞變化，寫成 are endanger 或 are endangering。分辨法：能直接放在 be 動詞後面當表語的就是形容詞；endangering 是「使……瀕危」的動作語意，意思完全不同。",
+        "exOkText": "(O) Many sea turtles **are endangered** now.",
+        "exOkZh": "現在許多海龜都瀕臨滅絕。",
+        "exBadText": "(X) Many sea turtles **are endangering** now.",
+        "exBadNote": "錯誤：are 後面要接形容詞 endangered，不能用動詞 endangering"
+      },
+      {
+        "title": "endangered 與 dangerous 詞義混淆",
+        "bad": "(X) These animals are dangerous.",
+        "ok": "(O) These animals are endangered.",
+        "why": "endangered 是「瀕臨滅絕的」，是一種需要被保護的狀態；dangerous 是「危險的」，泛指會造成危險。老虎確實也可能 dangerous，但題目要考的是「瀕危物種」這個生態概念，所以要選 endangered。看到保護動物、生態保育的題幹，就往 endangered 想。",
+        "exOkText": "(O) Pangolins **are endangered** in many countries.",
+        "exOkZh": "穿山甲在許多國家都瀕臨滅絕。",
+        "exBadText": "(X) Pangolins **are dangerous** in many countries.",
+        "exBadNote": "錯誤：語意是「瀕危」而非「危險」，應選 endangered"
+      },
+      {
+        "title": "形容詞不能加 in：in endangered 應為 in danger",
+        "bad": "(X) These animals are in endangered.",
+        "ok": "(O) These animals are endangered. ／ (O) These animals are in danger.",
+        "why": "endangered 是形容詞，不能像名詞一樣組成 are in endangered。學生看到 are 就反射式加 in，結果造出錯的片語。表達「處於危險中」要用名詞片語 are in danger；表達「是瀕危的」就直接用 are endangered。兩者擇一，不能混著寫。",
+        "exOkText": "(O) Small fish **are in danger** in the ocean.",
+        "exOkZh": "小魚在海洋中有危險。",
+        "exBadText": "(X) Small fish **are in endangered** in the ocean.",
+        "exBadNote": "錯誤：in 後面要接名詞 danger，形容詞 endangered 不能放在 in 之後"
       }
     ],
     "traps": [
-      "endangered（瀕危的）和 dangerous（危險的）只差三個字母，意思完全不同。",
-      "These 一定要配 are 與複數名詞，三者缺一不可。",
-      "be 動詞後面接形容詞，不要多加介詞或 to。",
-      "zoo 告示常見「(O) This animal is endangered.」，單數配 is，不要一律加 s。"
+      "is / are 呼應陷阱：閱讀題常把 these 改成 this，句子其他字不變，考生必須立刻重新判斷 be 動詞。",
+      "詞義陷阱：dangerous、endangered、in danger 三種說法聽起來相近，但考的是「瀕危物種」還是「有危險」。",
+      "字尾陷阱：-ed 結尾不一定就是動詞過去式，are 後面要填能當表語、描述狀態的字。"
     ],
     "strategy": [
-      "背「endangered、dangerous、in danger」三組易混淆詞，寫在筆記本同一頁對照。",
-      "看到 be 動詞就先預設後面接形容詞，再對照字典確認字義。",
-      "練習時把單複數代名詞與 be 動詞綁在一起背：「This is…」「These are…」。"
+      "讀題時先圈主詞：These / This 畫起來，決定 is 或 are，再繼續往下作答。",
+      "背下 endangered 就能連到三種用法：be endangered、in danger、endangered species（瀕危物種）。",
+      "用中文檢查語意：讀完問自己「這些動物是『會傷人』還是『快要消失』？」後者才是瀕危。",
+      "練習 be 動詞 + 形容詞的框架：are endangered、are dangerous、are cute，形容詞換著填，句型就熟了。"
     ]
   },
   "We should protect animals.": {
     "zh": "我們應該保護動物。",
     "ipa": "/wiː ʃʊd prəˈtekt ˈænɪ.məlz/",
-    "headline": "should 後接動詞原形，protect 不加 er",
-    "items": [
+    "headline": "should 一出現，後面就鎖死動詞原形 protect",
+    "structure": [
       {
-        "point": "should + 動詞原形",
-        "ok": "should protect",
-        "bad": "should to protect ／ (X) should protects",
-        "why": "should 是情態動詞（can、must、should…），後面一定要接動詞原形，而且中間不能加 to。中文的「應該去保護」很容易讓學生多寫一個 to，或受「動詞+s」習慣影響多寫 s。",
-        "exam": "會考翻譯「我們應該…」常考 should 後面接原形；單選題的「(X) should to come」幾乎年年都出現，牢記這條規則就得分。"
+        "role": "主詞",
+        "token": "We",
+        "pos": "代名詞 (Pronoun) — 人稱代詞的複數形",
+        "func": "句子的主語，指「我們」；是複數，但本句沒有 be 動詞",
+        "mark": "O"
       },
       {
-        "point": "protect 的字形",
-        "ok": "protect",
-        "bad": "proctect ／ (X) protech ／ protector（誤加 er）",
-        "why": "protect 是「保護」，是動詞原形。學生常誤以為它要變成「保護者」而加 -er（protector），或把 c、t 順序打反。protect 是及物動詞，後面直接接受詞 animals。",
-        "exam": "閱讀題的標語「(O) Protect animals.」就是在考這個字；拼字題則直接考 c 與 t 的位置。"
+        "role": "情態動詞",
+        "token": "should",
+        "pos": "情態動詞 (Modal Verb)",
+        "func": "表示「應該」，後面一定要接動詞原形，是本句的動詞核心",
+        "mark": "O"
       },
       {
-        "point": "及物動詞與受詞",
-        "ok": "protect animals",
-        "bad": "We should protect.（漏掉受詞）",
-        "why": "protect 是及物動詞，後面必須接受詞，這句的受詞就是 animals。若寫成「(X) We should protect.」，意思變成「我們應該保護（什麼？）」，語意不完整，會被扣分。",
-        "exam": "翻譯題「保護動物」四個字，答案要完整包含受詞 animals，不能只寫 protect 就交差。"
+        "role": "動詞",
+        "token": "protect",
+        "pos": "動詞 (Verb) — 原形",
+        "func": "及物動詞，意思是「保護」，後面接受詞；不加 s、不加 -ed、不加 -ing",
+        "mark": "O"
       },
       {
-        "point": "複數與單數的動物",
-        "ok": "animals",
-        "bad": "animal",
-        "why": "動物是集合泛指、數量大於一，必須用複數 animals。protect 後面接的名詞要有 -s，這是本句最容易被忽略的一個字。",
-        "exam": "會考常把 animals 漏 s 當作扣分點；寫完複數名詞請停下來複查一次。"
+        "role": "受詞",
+        "token": "animals",
+        "pos": "名詞 (Noun) — animal 的複數",
+        "func": "protect 的受詞；這裡泛指「動物」整體，用複數表示",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "We should protect animals.",
-        "note": "「should」立刻接動詞原形 protect，中間沒有 to；protect 是及物動詞，後面受詞 animals 完整，整句結構沒有缺角。"
+        "title": "should 後面沒有接動詞原形",
+        "bad": "(X) We should protects animals. ／ (X) We should to protect animals.",
+        "ok": "(O) We should protect animals.",
+        "why": "情態動詞 can、should、must、will 後面一律接動詞原形，不加 s、不加 -ed、不加 -ing，也不加 to。台灣學生最常犯兩種：受中文「應該要」影響而多寫 to；看到 protect 好像當主詞就自己加了 s。寫完 should 先停一秒，確認下一個字是原形再往下寫。",
+        "exOkText": "(O) Students **should protect** wild birds.",
+        "exOkZh": "學生應該保護野生鳥類。",
+        "exBadText": "(X) Students **should protects** wild birds.",
+        "exBadNote": "錯誤：should 後面要接動詞原形 protect，不加 s"
       },
       {
-        "ok": false,
-        "text": "We should to protect animals.",
-        "note": "should 是情態動詞，後面直接接 protect，絕對不能加 to。看到中文「應該去…」就把 to 一起翻過去，是最常見的中式英文錯誤。"
+        "title": "protect 不可隨意加字尾（protector / protecter）",
+        "bad": "(X) We should protectors animals.",
+        "ok": "(O) We should protect animals.",
+        "why": "protect 在這裡是動詞，不能加 -er、-or 變成名詞或比較級。加了字尾之後，句子結構就變成「名詞 + 名詞」，讀起來完全不通。判斷法：看後面有沒有受詞 animals；有受詞的這個字就是動詞，必須維持原形，而且前面已經有 should，再變形一定錯。",
+        "exOkText": "(O) We should **protect** endangered animals.",
+        "exOkZh": "我們應該保護瀕危動物。",
+        "exBadText": "(X) We should **protector** endangered animals.",
+        "exBadNote": "錯誤：protect 是動詞，不能加 -or 變成名詞"
+      },
+      {
+        "title": "泛指「動物」時漏加複數 s",
+        "bad": "(X) We should protect animal.",
+        "ok": "(O) We should protect animals.",
+        "why": "中文「動物」沒有單複數變化，但英文 animal 是可數名詞，泛指「動物」整體時要用複數 animals。台灣學生常受中文影響漏掉 s，尤其在限字數的短答或寫作裡。記住：中文沒有 s 的地方英文常常要加；保護動物這類環保句子裡，animals 幾乎一定出現。",
+        "exOkText": "(O) Farmers should take care of **animals**.",
+        "exOkZh": "農夫應該照顧動物。",
+        "exBadText": "(X) Farmers should take care of **animal**.",
+        "exBadNote": "錯誤：泛指動物整體時要用複數 animals"
+      },
+      {
+        "title": "should 與 must 語氣混淆（中文「應該」的對應）",
+        "bad": "(X) We must protect animals. （把中文的「應該」直接翻成 must）",
+        "ok": "(O) We should protect animals.",
+        "why": "should 是「應該、最好」，屬於建議；must 是「必須」，屬於強制命令。題目中文寫「應該」時，英文答案要用 should；中文寫「必須、一定要」才用 must。這種語氣對應錯誤在翻譯與閱讀題很常見，務必把中文提示詞和英文情態動詞一對一配好，反過來看到 must 先確認中文是不是「必須」。",
+        "exOkText": "(O) We **should** use less plastic every day.",
+        "exOkZh": "我們每天應該少用塑膠。",
+        "exBadText": "(X) We **should** — 我們必須用塑膠，句中用 must 才是「必須」",
+        "exBadNote": "錯誤：中文若寫「必須」，英文才用 must；寫「應該」要用 should"
       }
     ],
     "traps": [
-      "should / can / must / may 後面一律接動詞原形，中間不碰 to。",
-      "情態動詞後面不要加 -s、-ing、-ed。",
-      "protect 是及物動詞，後面受詞不能漏。",
-      "animals 複數的 -s 要記得打出來。"
+      "情態動詞後的陷阱：選擇題常在 protects / protecting / to protect 之間設選項，記住一律選原形。",
+      "字尾陷阱：protect 本身已以 -ct 結尾，學生容易誤以為還要再加字尾；這裡完全不需要變化。",
+      "翻譯陷阱：中文「應該」對應 should、「必須」對應 must，照著中文的語氣強度選，不要憑感覺。"
     ],
     "strategy": [
-      "在腦中默念「情態動詞→原形」五步：should → (不加 to) → 原形動詞。",
-      "把 protect、plant、help 這類「不需要加 er」的動詞貼在書桌前提醒自己。",
-      "打完句子後反向檢查：每個 should 後面是不是都接原形。"
+      "寫作時先寫 We should，暫停，再寫 protect——兩個詞之間絕對不插入 to 或 -s。",
+      "用四格公式套句子：主詞 + 情態動詞 + 動詞原形 + 受詞，例如 We should protect animals.",
+      "複數把關：寫完名詞順手檢查前面有沒有 one / three / many，或中文的「各種、所有」，再決定單複數。",
+      "把 should 與 must 各寫三個例句對照（We should save water. / We must wear a helmet.），把語氣差異記成身體記憶。"
     ]
   },
   "Do not feed the animals.": {
     "zh": "不要餵食動物。",
     "ipa": "/duː nəʊt fiːd ðiː ˈænɪ.məlz/",
-    "headline": "祈使句否定用 Do not，feed 是原形不加 s",
-    "items": [
+    "headline": "否定祈使句的固定語序：Do not + 動詞原形 + the + 複數名詞",
+    "structure": [
       {
-        "point": "祈使句否定",
-        "ok": "Do not feed（＋動詞原形）",
-        "bad": "Does not feed the animals. ／ (X) Do not feeds the animals.",
-        "why": "本句是祈使句，對「你」下命令，否定用「Do not + 動詞原形」，或縮寫成 Don't。絕對不能用 Does not，因為祈使句的主詞是 you，不是第三人稱。兩種寫法意思相同，會考都收。",
-        "exam": "會考在「Do not」與「Does not」之間選答案，記得：主詞是 you 就選「Do not」，主詞是 he/she/it 才選「Does not」。"
+        "role": "助動詞",
+        "token": "Do",
+        "pos": "助動詞 (Auxiliary)",
+        "func": "和 not 搭配形成否定祈使句「不要」，本身不帶主要語意",
+        "mark": "O"
       },
       {
-        "point": "動詞原形不加 s",
-        "ok": "feed the animals",
-        "bad": "feeds the animals ／ (X) feeds the animal",
-        "why": "「Do not」後面一定要接動詞原形 feed，不能加 -s。有些學生以為前面有 Do 所以還是要變第三人稱，結果寫成 feeds，這是最典型的錯誤。也常有人把 feed 誤打成 feal 或漏掉中間的 e。",
-        "exam": "單選題若選項分別是「(X) feeds the animals.」與「(O) feed the animals.」，答案一定後者；主詞是 you，動詞不做變化。"
+        "role": "否定詞",
+        "token": "not",
+        "pos": "否定詞 (Participle)",
+        "func": "緊跟在助動詞 Do 之後，構成 do not（口語可縮寫為 Don't）",
+        "mark": "O"
       },
       {
-        "point": "定冠詞 the + 複數名詞",
-        "ok": "the animals",
-        "bad": "animals（漏 the）",
-        "why": "這裡 the 是定冠詞，表示「那些（特定的）動物」，特指大家心知肚意的那群動物，前面沒有指示代詞或名詞接續時不能省略。注意 animals 仍要複數，the 與 -s 兩者都要有。",
-        "exam": "泛指時寫 animals，但「不要餵食動物」這種告示語境通常要 the，寫錯會被判與標準答案不符。"
+        "role": "主要動詞",
+        "token": "feed",
+        "pos": "動詞 (Verb) — 原形",
+        "func": "意思是「餵食」，被 Do not 否定後仍維持原形，不加 s、不加 -ing",
+        "mark": "O"
       },
       {
-        "point": "feed 與 food",
-        "ok": "feed（動詞，餵食）",
-        "bad": "food the animals",
-        "why": "feed 是「餵」這個動作，是動詞；food 是「食物」，是名詞。學生常因中文都用「餵」而把兩者搞混。動詞要用 feed，名詞要用 food，例如「(O) Give the animals some food.」。",
-        "exam": "字義題或翻譯題出現「(O) Give them food.」與「(O) Feed them.」的差別，會考 feed 是動作、food 是東西。"
+        "role": "定冠詞",
+        "token": "the",
+        "pos": "限定詞 (Determiner)",
+        "func": "特指前面提過的那一群動物，這個位置不可省略",
+        "mark": "O"
+      },
+      {
+        "role": "受詞",
+        "token": "animals",
+        "pos": "名詞 (Noun) — animal 的複數",
+        "func": "feed 的受詞，指園內那群動物，與 the 搭配使用",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "Do not feed the animals.",
-        "note": "標準的告示祈使句否定：「Do not + 動詞原形 feed」，後面接「the animals」。改用縮寫「Don't」也可以，兩種都正確。"
+        "title": "Do not 後面沒有接動詞原形",
+        "bad": "(X) Do not feeds the animals. ／ (X) Do not feeding the animals.",
+        "ok": "(O) Do not feed the animals.",
+        "why": "Do not 已經把這句變成否定態，後面的動詞就必須回到原形，不能加 s 也不能加 -ing。台灣學生常受一般句型影響，看到 animals 是複數就順手把動詞也變成 feeds。判斷法：把 not 拿掉後唸一次（Feed the animals.），如果能成立，那個字就是原形。",
+        "exOkText": "(O) **Do not feed** the animals at the zoo.",
+        "exOkZh": "在動物園裡不要餵食動物。",
+        "exBadText": "(X) **Do not feeds** the animals at the zoo.",
+        "exBadNote": "錯誤：Do not 後面要接動詞原形 feed，不加 s"
       },
       {
-        "ok": false,
-        "text": "Do not feeds the animals.",
-        "note": "「Do not」後面必須接動詞原形 feed，不能加 -s。看到第三人稱規則就自動加 s，是祈使句裡最常見的誤用。"
+        "title": "feed 與 food 詞性混淆",
+        "bad": "(X) Do not food the animals.",
+        "ok": "(O) Do not feed the animals.",
+        "why": "feed 是動詞「餵食」，food 是名詞「食物」，兩個字只差一個字母，學生常在背單字或打字時混用。分辨法：後面跟著受詞 the animals 時，那個字就是動詞，只能是 feed；food 是名詞，不能作祈使句的主要動詞，也不能直接帶受詞。",
+        "exOkText": "(O) Please **feed** the birds in the park.",
+        "exOkZh": "請餵食公園裡的鳥。",
+        "exBadText": "(X) Please **food** the birds in the park.",
+        "exBadNote": "錯誤：food 是名詞「食物」，這裡要用動詞 feed"
+      },
+      {
+        "title": "定冠詞 the 不可漏掉",
+        "bad": "(X) Do not feed animals.",
+        "ok": "(O) Do not feed the animals.",
+        "why": "這裡的 the 負責特指「（前面提過的）那些動物」，不是泛指所有動物。台灣學生常覺得動物是複數就不需要 the，但英文裡複數名詞前面一樣可以用 the。判斷法：句中若已經出現過動物園或動物這個對象，the 就是在回指前面那一群，不能省。",
+        "exOkText": "(O) The animals are hungry. **Do not feed** them now.",
+        "exOkZh": "動物們很餓，現在不要餵食牠們。",
+        "exBadText": "(X) The animals are hungry. **Do not feed** animals now.",
+        "exBadNote": "錯誤：這裡的 animals 是特指前面提到的那群，前面要加 the"
+      },
+      {
+        "title": "否定詞位置放錯（Feed don't the animals）",
+        "bad": "(X) Feed don't the animals. ／ (X) Feed not the animals.",
+        "ok": "(O) Do not feed the animals. ／ (O) Don't feed the animals.",
+        "why": "否定句的固定語序是「助動詞 + not + 主要動詞」，助動詞一定站在最前面。這是中文直譯「餵食不要動物」造成的高發錯誤。考試中若改用縮寫 Don't，也要讓 Don't 在句首，後面再接原形動詞，絕對不能寫成 Feed don't the animals.",
+        "exOkText": "(O) **Don't feed** the animals bread.",
+        "exOkZh": "不要拿麵包餵動物。",
+        "exBadText": "(X) **Feed don't** the animals bread.",
+        "exBadNote": "錯誤：助動詞與 not 必須放在句首，語序不可對調"
       }
     ],
     "traps": [
-      "祈使句主詞是 you，否定用 Do not 或 Don't，不是 Does not。",
-      "Do / Does 後面的動詞一律用原形，不加 s、不加 -ing。",
-      "feed（餵，動詞）與 food（食物，名詞）不要搞混。",
-      "the animals 的 the 與 animals 的 -s，兩個都不能漏。"
+      "祈使句否定陷阱：句子改寫題常把 feed 換成 feeds 或 feeding，只有原形能通過。",
+      "feed / food 打字陷阱：兩字只差一格鍵盤，選擇題或連字題常故意設計相似選項。",
+      "冠詞陷阱：單複數名詞前面都可以有 the（the animal、the animals），看到 the 就不要隨意改動名詞。"
     ],
     "strategy": [
-      "背一組否定對照表：You do not…／He does not…，搭配原形動詞一起唸。",
-      "看到 Do not 就反射性在腦中補上「原形」兩個字。",
-      "練習時把 feed / food 寫成相鄰兩欄，每天複習一次。"
+      "背口訣「Do not 一放，動詞回原形」：只要看到句首 Do not 或 Don't，下一個字就檢查有沒有多 s 或 -ing。",
+      "寫完否定句做「翻回肯定」練習：把 Do not 刪掉，讀剩下的 Feed the animals.，確認能成立。",
+      "feed 與 food 成對記憶：feed 是「餵（動詞）」、food 是「食物（名詞）」，一次記兩個方向。",
+      "縮寫與完整式都練：Don't feed the animals.（口語）與 Do not feed the animals.（寫作）各寫一次，考試看題目要求選。"
     ]
   },
   "The zoo is closed every Monday.": {
     "zh": "動物園每週一休館。",
     "ipa": "/ðə zuː ɪz kləʊzd ˈevri ˈmʌndeɪ/",
-    "headline": "is closed 是狀態不是進行式，every 後接單數",
-    "items": [
+    "headline": "is closed 描述狀態，every 後面的 Monday 是單數且要大寫",
+    "structure": [
       {
-        "point": "be 動詞 + 過去分詞（狀態）",
-        "ok": "is closed",
-        "bad": "is closing / is close",
-        "why": "closed 在這裡是形容词，表達「休館」這個持續狀態，所以用 be 動詞 is。千萬不要寫成 is closing（正在關門），意思變成「正在進行關閉的動作」，和告示語意不符。",
-        "exam": "會考閱讀的告示牌、課堂公告常出現 is closed，測的就是 be + 過去分詞表狀態的概念。"
+        "role": "定冠詞",
+        "token": "The",
+        "pos": "限定詞 (Determiner)",
+        "func": "特指某一個特定的動物園，是主詞 the zoo 的一部分",
+        "mark": "O"
       },
       {
-        "point": "定冠詞 the + 特定場所",
-        "ok": "The zoo",
-        "bad": "Zoo / A zoo",
-        "why": "前面已經提過的、特定的那個動物園要用定冠詞 the。如果是指第一次提到、泛指一個動物園，才用 a zoo。中文省略冠詞，英文卻不能省。",
-        "exam": "閱讀測驗的告示標題常寫 The zoo is closed…，考的就是定冠詞 the 的使用。"
+        "role": "主詞",
+        "token": "zoo",
+        "pos": "名詞 (Noun)",
+        "func": "句子的主語中心詞，指「動物園」；單數，所以 be 動詞用 is",
+        "mark": "O"
       },
       {
-        "point": "every + 單數名詞",
-        "ok": "every Monday",
-        "bad": "every Mondays",
-        "why": "every 本身就含有「每一個」的意思，後面必須接單數名詞 Monday。不能寫成 every Mondays，也不需要 every day 這種搭配。每週一就是 every Monday。",
-        "exam": "翻譯「每週一…」固定是 every Monday；三單與複數的判斷在這裡直接適用。"
+        "role": "be 動詞",
+        "token": "is",
+        "pos": "動詞 (Verb) — be 動詞第三人稱單數",
+        "func": "和單數主詞 the zoo 呼應，表示「是」，引出後面的狀態描述",
+        "mark": "O"
       },
       {
-        "point": "星期一的大小寫",
-        "ok": "Monday（每星期一）",
-        "bad": "monday / every monday（每星期一）",
-        "why": "星期的專有名詞一定要大寫開頭：Monday、Friday、Sunday…。台灣學生常寫成小寫 monday，尤其在輸入時大小寫容易漏打，是很常見的低級失分。",
-        "exam": "打字題與翻譯題都會算大小寫，小寫 monday 可能直接算錯，建議打完整句後專門檢查一次。"
+        "role": "表語",
+        "token": "closed",
+        "pos": "形容詞 (Adjective) — close 的過去分詞",
+        "func": "be 動詞後的表語，表示「關著的、休館的」這種持續狀態，不是「正在關門」的動作",
+        "mark": "O"
+      },
+      {
+        "role": "時間狀語",
+        "token": "every Monday",
+        "pos": "片語 (Phrase) — 不定數量詞片語",
+        "func": "表示頻率「每週一」；every 後面的名詞用單數，而且星期名稱首字母要大寫",
+        "mark": "O"
       }
     ],
-    "examples": [
+    "mistakes": [
       {
-        "ok": true,
-        "text": "The zoo is closed every Monday.",
-        "note": "The zoo 是特定場所配 the，is closed 用 be + 過去分詞表狀態，every Monday 裡 Monday 大寫且用單數，每個得分點都正確。"
+        "title": "星期名稱沒有大寫",
+        "bad": "(X) The zoo is closed every monday.",
+        "ok": "(O) The zoo is closed every Monday.",
+        "why": "星期的第一個字母一定要大寫，例如 Monday、Friday，這是英文的固定拼寫規則。會考的填空題與改錯題常專門檢查這一點。台灣學生用注音符號或中文思考，習慣全部小寫或隨手打字，就會漏掉大寫。寫完星期名稱後回頭檢查第一個字母即可。",
+        "exOkText": "(O) The library is open **every Sunday**.",
+        "exOkZh": "圖書館每週日都開放。",
+        "exBadText": "(X) The library is open **every sunday**.",
+        "exBadNote": "錯誤：星期名稱首字母要大寫，應為 Sunday"
       },
       {
-        "ok": false,
-        "text": "The zoo is closing every Mondays.",
-        "note": "兩處錯誤：is closed（休館狀態）不能寫成 is closing（正在關門）；every 後面的 Monday 是單數，不能加 s。"
+        "title": "every 後面加了複數 s",
+        "bad": "(X) The zoo is closed every Mondays.",
+        "ok": "(O) The zoo is closed every Monday.",
+        "why": "every 是「每一個」，後面必須接單數名詞，不能加 s，也不能加 a。台灣學生常受「每個星期一＝所有星期一」的語感影響，寫成 every Mondays。口訣：every、each、one of 這三個字後面一定都是單數名詞，選項裡只要出現複數形就可以直接排除。",
+        "exOkText": "(O) The zoo is closed **every Monday** in summer.",
+        "exOkZh": "動物園夏天每週一都休館。",
+        "exBadText": "(X) The zoo is closed **every Mondays** in summer.",
+        "exBadNote": "錯誤：every 後面的名詞用單數 Monday，不加 s"
+      },
+      {
+        "title": "狀態與動作混淆（is closed 寫成 is closing）",
+        "bad": "(X) The zoo is closing every Monday.",
+        "ok": "(O) The zoo is closed every Monday.",
+        "why": "is closed 描述的是「（每週一）都處於休館狀態」；is closing 是現在進行式，意思是「現在正在關門」，語意完全不同，也無法表達每週反覆的固定狀態。分辨法：休館時間是固定的事實就用 be + 過去分詞；正在做的動作才用 be + -ing。",
+        "exOkText": "(O) The museum **is closed** every Monday evening.",
+        "exOkZh": "博物館每週一晚上都休館。",
+        "exBadText": "(X) The museum **is closing** every Monday evening.",
+        "exBadNote": "錯誤：is closing 是「正在關門」，表達固定休館要用 is closed"
+      },
+      {
+        "title": "be 動詞被省略（closed 前少了 is）",
+        "bad": "(X) The zoo closed every Monday.",
+        "ok": "(O) The zoo is closed every Monday.",
+        "why": "closed 在這裡是形容詞，必須靠 be 動詞 is 構成句子的謂語。直接寫 The zoo closed every Monday. 會變成「動物園（過去）關門了」的動作句，語意與原句不同。台灣學生常以為「關閉」本身就是動詞而漏掉 be。檢查法：把 closed 前面的字圈起來，確認有沒有 be 動詞。",
+        "exOkText": "(O) The park **is closed** every Monday.",
+        "exOkZh": "公園每週一都關閉。",
+        "exBadText": "(X) The park **closed** every Monday.",
+        "exBadNote": "錯誤：closed 是過去分詞當表語，前面必須有 be 動詞 is"
       }
     ],
     "traps": [
-      "be + 過去分詞（is closed）是狀態；is + 進行式（is closing）是動作，別搞混。",
-      "every 後面接單數名詞，不能加 -s。",
-      "星期的專有名詞一定要大寫開頭：Monday、Friday、Sunday。",
-      "特定場所用 the（The zoo），泛指才用 a（a zoo）。"
+      "星期與月份大小寫陷阱：Monday、May、June 在句中一定要大寫，改錯題專門考這一點。",
+      "every 陷阱：every Monday 不加 s；相對的 each Monday 也不加 s，別和 every other Monday（每隔一週）混淆。",
+      "狀態片語陷阱：be closed（休館）、be open（營業）都用 be + 過去分詞，不要寫成 be closing / be opening。"
     ],
     "strategy": [
-      "把 closed / closing 兩個字並排寫，標上「狀態 vs 動作」，考試前看一分鐘。",
-      "練習時每句打完都檢查兩件事：星期的字首大寫了嗎？every 後面是單數嗎？",
-      "記住 be + 過去分詞這個公式，延伸到 is closed、is banned、is finished。"
+      "寫完星期名稱就檢查首字母大小寫，把 Monday 到 Sunday 七個字背熟並全部大寫。",
+      "看到 every 就提醒自己：後面單數、沒有 a、也不加 -s。",
+      "背三個公共場所常用句型：The zoo is closed every Monday. / The library is open on Sunday. / The museum is closed today.",
+      "分清楚 be closed 與 be closing，練習時用中文問自己「是『關著』還是『正在關』」。"
     ]
   }
 };
