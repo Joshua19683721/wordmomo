@@ -43,3 +43,8 @@ _fixed_examples.json
 _known_issues.json
 _patch_b*.json
 _backup_v5/
+
+_peek.js
+_dump_*.txt
+_build_patch_*.js
+_simp_*.js
