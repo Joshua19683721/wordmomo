@@ -1,7 +1,24 @@
 # 「解析這一句」內容生成 Prompt
 
 這份 prompt 是給 vLLM / 其他 LLM 用的產生器。把它和「句子練習的截圖」一起送出，
-模型會輸出**可直接貼進 `data/analysis.js`** 的 JSON。
+模型會輸出**可直接組裝進 `data/analysis-NN.js`** 的 JSON。
+
+---
+
+## 解析庫是怎麼存放的
+
+解析內容太多（600 句以上時超過 3 MB），塞成單一檔會讓每次開頁都要下載全部，
+所以切成很多段：
+
+| 檔案 | 內容 |
+| --- | --- |
+| `data/analysis-index.js` | 一張小索引：每個英文句子 → 它在哪一段（`window.SENTENCE_ANALYSIS_INDEX`） |
+| `data/analysis-01.js` … `analysis-11.js` | 每段約 60 句，定義 `window.SENTENCE_ANALYSIS_NN`（實際變數名是 `SENTENCE_ANALYSIS_PART_01` 等） |
+
+App 開啟「解析這一句」時，先查索引找到該句在哪一段，只 `<script>` 載入那一段（約 185 KB），
+載好後才畫面板；換句時會預先載入下一句所在的段。載入失敗會退回 App 內建的自動檢查提示。
+
+`index.html` 開頭只掛 `data/analysis-index.js`（約 15 KB），不要改成載入整包。
 
 ---
 
@@ -9,8 +26,8 @@
 
 1. 截圖：App 練習畫面（每個英文單字一格的那張）→ 模型讀出英文句子
 2. 貼上下面「Prompt」整段
-3. 模型輸出 JSON → 存成 `.json` 檔
-4. 丟進專案根目錄（`_v3_b1.json` 之類），我負責組裝成 `data/analysis.js` 並 push
+3. 模型輸出 JSON → 存成 `_v5_bNN.json`
+4. 丟進專案根目錄，我負責驗證、切成 `data/analysis-NN.js` 並 push
 
 ---
 
@@ -67,10 +84,27 @@
 ```
 
 數量規則：
-- `structure`：依句子長度給 **2-10 列**，依句子順序排列，短片語可以少一點
+- `structure`：依句子長度給 **2-10 列**，依句子順序排列，短片語可以少一點（最低 2 列）
 - `mistakes`：**恰好 4 個**
-- `traps`：**3-4 條**
-- `strategy`：**4-5 條**
+- `traps`：**3-5 條**
+- `strategy`：**4-6 條**
+
+### 二之二、單字與極短片語的特例
+
+這批語料大量是「單字」與「2-4 個字的詞組」（例如 `student`、`because of`、`on the highest step`）。
+這種條目一樣要給滿 4 個錯誤與完整結構，但內容重心要調整：
+
+1. `intro` 必須先講清楚：這是一個**單獨的單字／詞組，本身不能（或很少）獨立成句**，以及它在這堂課的語境中怎麼用。
+2. `structure` 只放 **2-4 列**；單字請補一列「詞形變化」（原形 / 過去式 / 複數 / 比較級），說明變化規則。
+3. 4 個錯誤請涵蓋不同面向，例如：
+   - **拼字**：學生常寫錯的字（`necessary` vs `neccessary`、`beleive` vs `believe`）
+   - **發音 / 重音**：常見唸錯的單字（`thirteen` vs `thirty`、`comfortable`）
+   - **名詞複數**：不可數名詞不加 s（`advice`、`furniture`）、規則變化（`knife → knives`）
+   - **詞性**：同一個字當名詞 / 動詞 / 形容詞的差別（`work`、`light`、`fast`）
+   - **固定片語介系詞**：`look at`、`depend on`、`be good at`、`afraid of`
+   - **同義詞混淆**：`some` vs `any`、`few` vs `a few`、`borrow` vs `lend`
+4. `exOkText` / `exBadText` 仍要用**完整、自然的英文句子**當例子，並給中文翻譯。
+5. `headline` 可以直接點出最容易錯的地方，例如「單字 work 是名詞也是動詞，看後面接什麼」。
 
 ### 三、輸出格式
 

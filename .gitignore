@@ -1,0 +1,41 @@
+# 產生解析內容時的暫存檔（不進版控）
+_batch/
+_batches.json
+_part*.txt
+_p*.json
+_v5_b*.json
+_v5b*.js
+_v5_*.cjs
+_val_*.js
+_verify_*.js
+_inl*.js
+__seed.html
+
+# 一次性組裝 / 檢查腳本
+wm_*.js
+wm_*.ps1
+_add*.js
+_apply*.js
+_cal*.js
+_check*.js
+_chk*.js
+_dash*.js
+_def*.js
+_fin*.js
+_final*.js
+_fix*.js
+_gen*.js
+_merge*.js
+_metric*.js
+_notes*.js
+_patch*.js
+_smart*.js
+_survey*.js
+
+# 截圖輸出
+*.png
+!docs/*.png
+_*.cjs
+
+_broken_examples.json
+_fixed_examples.json

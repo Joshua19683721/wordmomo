@@ -1003,8 +1003,8 @@
 
   <!-- 共用句庫：GitHub 上 data/sentences.js 的內容，會蓋掉 App 內建的預設句庫 -->
   <script src="data/sentences.js"></script>
-  <!-- 老師寫好的解析庫：GitHub 上 data/analysis.js；沒有的句子會用自動檢查提示 -->
-  <script src="data/analysis.js"></script>
+  <!-- 老師寫好的解析庫分段索引（很小，一開就載入）：句子 → 該句解析位於哪一段 analysis-NN.js -->
+  <script src="data/analysis-index.js"></script>
 
   <script>
     const defaultRawText = `This = 這 = /ðɪs/
@@ -1183,7 +1183,10 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
     }
 
     function parseRawText(text) {
-      const lines = text.split('\n').filter(l => l.trim() !== '');
+      // 略過空行與 // 開頭的註解行（句庫檔頭的說明不算句子）
+      const lines = text.split('\n')
+        .map(l => l.replace(/^﻿/, '').trim())
+        .filter(l => l !== '' && !l.startsWith('//'));
       return lines.map(line => {
         const parts = line.split(/=|＝/).map(p => p.trim());
         return {
@@ -1304,6 +1307,7 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
       if (restore) checkSentenceCompletion();
       saveProgress();
       speakText(currentData.en, 1);
+      prefetchAnalysis();
       setTimeout(() => {
         const inputs = Array.from(wordsContainer.querySelectorAll('input'));
         const firstEmpty = inputs.find(i => !i.classList.contains('correct'));
@@ -1532,7 +1536,63 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
     });
 
     /* ================= 解析這一句 ================= */
-    const ANALYSIS = (typeof window.SENTENCE_ANALYSIS === 'object' && window.SENTENCE_ANALYSIS) || {};
+    /* 解析庫分成多段 data/analysis-NN.js，開啟面板時只載入目前這一句需要的那一段，
+       避免整包數 MB 的解析一開始就全部下載。載入期間先用 App 自動提示，載好再自動重畫。 */
+    const ANALYSIS = Object.create(null);
+    const ANALYSIS_INDEX =
+      (typeof window.SENTENCE_ANALYSIS_INDEX === 'object' && window.SENTENCE_ANALYSIS_INDEX) || null;
+    const analysisLoaded = Object.create(null);
+    const analysisPending = Object.create(null);
+
+    function loadAnalysisChunk(num) {
+      if (!num) return Promise.resolve(false);
+      if (analysisLoaded[num]) return Promise.resolve(true);
+      if (analysisPending[num]) return analysisPending[num];
+      const p = new Promise(function (resolve) {
+        const s = document.createElement('script');
+        s.src = 'data/analysis-' + num + '.js';
+        s.async = true;
+        s.onload = function () {
+          const part = window['SENTENCE_ANALYSIS_PART_' + num];
+          if (part) { for (const k in part) ANALYSIS[k] = part[k]; }
+          analysisLoaded[num] = true;
+          resolve(true);
+        };
+        s.onerror = function () { resolve(false); };
+        document.head.appendChild(s);
+      });
+      analysisPending[num] = p.then(
+        function (r) { delete analysisPending[num]; return r; },
+        function () { delete analysisPending[num]; return false; }
+      );
+      return analysisPending[num];
+    }
+
+    function analysisChunkOf(card) {
+      if (!ANALYSIS_INDEX || !card) return null;
+      return ANALYSIS_INDEX[card.en]
+        || ANALYSIS_INDEX[card.en.replace(/[.?!]+$/, '')]
+        || ANALYSIS_INDEX[card.en.trim()]
+        || null;
+    }
+
+    function lookupAnalysis(card) {
+      return ANALYSIS[card.en]
+        || ANALYSIS[card.en.replace(/[.?!]+$/, '')]
+        || ANALYSIS[card.en.trim()]
+        || null;
+    }
+
+    // 換句時預先載入「目前這一句」與「下一句」的解析段，讓按解析時幾乎是瞬間打開
+    function prefetchAnalysis() {
+      if (!ANALYSIS_INDEX) return;
+      [currentIndex, currentIndex + 1].forEach(function (i) {
+        const card = dataset[i];
+        if (!card) return;
+        const num = analysisChunkOf(card);
+        if (num && !analysisLoaded[num]) loadAnalysisChunk(num);
+      });
+    }
 
     function escapeHtml(str) {
       return String(str == null ? '' : str)
@@ -1668,7 +1728,7 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
           '標點也要檢查：逗號之後用小寫，句號之後才大寫。'
         ],
         strategy: [
-          '想讓這一句也有完整解析，把內容加到專案的 data/analysis.js，所有裝置就會共用。',
+          '想讓這一句也有完整解析，把內容加到專案的 data/analysis-01.js，所有裝置就會共用。',
           '每天練完一句，把錯的那個字圈起來，隔天複習一次，比整句重打有效。'
         ]
       };
@@ -1677,7 +1737,18 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
     function currentAnalysis() {
       const card = dataset[currentIndex];
       if (!card) return null;
-      const found = ANALYSIS[card.en] || ANALYSIS[card.en.replace(/[.?!]+$/, '')] || ANALYSIS[card.en.trim()];
+      let found = lookupAnalysis(card);
+      if (!found) {
+        // 這一句的解析還在別段：背景載入，載好後自動重畫面板
+        const num = analysisChunkOf(card);
+        if (num && !analysisLoaded[num]) {
+          loadAnalysisChunk(num).then(function (ok) {
+            if (ok && explainPanel.classList.contains('open') && dataset[currentIndex] === card) {
+              renderExplain();
+            }
+          });
+        }
+      }
       return { card: card, data: found || autoAnalysis(card), fromLibrary: !!found };
     }
 
@@ -1774,8 +1845,12 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
       }
 
       if (!entry.fromLibrary) {
-        html += '<p class="ex-empty">這一句還沒有老師寫好的完整解析，上方是 App 依句型自動產生的檢查提示。'
-              + '把內容補到專案的 data/analysis.js 並 git push，所有裝置就會共用同一份解析。</p>';
+        const num = analysisChunkOf(card);
+        const loadingMsg = (num && !analysisLoaded[num])
+          ? '正在從雲端載入這一頁的老師解析…'
+          : '這一句還沒有老師寫好的完整解析，上方是 App 依句型自動產生的檢查提示。'
+            + '把內容補到專案的 data/analysis-01.js 並 git push，所有裝置就會共用同一份解析。';
+        html += '<p class="ex-empty">' + escapeHtml(loadingMsg) + '</p>';
       }
 
       explainBody.innerHTML = html;
