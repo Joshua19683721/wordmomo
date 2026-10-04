@@ -492,7 +492,7 @@
     }
 
     /* ================= 「解析這一句」面板 ================= */
-    /* 按鈕改放在底部快捷鍵列（.action-btn），隨時可按；Alt + S 任何時候都能開啟 */
+    /* 按鈕改放在底部快捷鍵列（.action-btn），隨時可按；Alt + A 任何時候都能開啟 */
     .explain-btn {
       flex-wrap: nowrap;
     }
@@ -937,7 +937,7 @@
 
   <div class="bottom-bar">
     <button class="action-btn purple explain-btn" id="explainBtn" title="隨時都能看解析，不必等整句打完">
-      <span>Alt + S</span> <span>📖 解析這一句</span>
+      <span>Alt + A</span> <span>📖 解析這一句</span>
     </button>
     <button class="action-btn" id="speakFullBtn">
       <span>Alt + '</span> <span>▶ 朗讀全句</span>
@@ -1405,8 +1405,8 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
         speakText(dataset[currentIndex].en, 1);
         return;
       }
-      // Alt + S：隨時都能看解析（不必等整句打完），再按一次關閉
-      if (e.altKey && (e.key === 's' || e.key === 'S' || e.code === 'KeyS')) {
+      // Alt + A：隨時都能看解析（不必等整句打完），再按一次關閉
+      if (e.altKey && (e.key === 'a' || e.key === 'A' || e.code === 'KeyA')) {
         if (importModal.style.display === 'flex') return;
         e.preventDefault();
         if (explainPanel.classList.contains('open')) closeExplain();
