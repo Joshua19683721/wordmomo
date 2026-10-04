@@ -39,3 +39,7 @@ _*.cjs
 
 _broken_examples.json
 _fixed_examples.json
+
+_known_issues.json
+_patch_b*.json
+_backup_v5/
