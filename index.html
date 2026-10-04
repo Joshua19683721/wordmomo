@@ -492,28 +492,9 @@
     }
 
     /* ================= 「解析這一句」面板 ================= */
+    /* 按鈕改放在底部快捷鍵列（.action-btn），隨時可按；Alt + S 任何時候都能開啟 */
     .explain-btn {
-      display: none;
-      align-items: center;
-      gap: 6px;
-      background: var(--accent-purple);
-      border: 1px solid var(--accent-purple);
-      color: #ffffff;
-      font-weight: 600;
-      padding: 9px 18px;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .explain-btn:hover {
-      background: var(--accent-purple-hover);
-      border-color: var(--accent-purple-hover);
-    }
-
-    .status-banner.complete .explain-btn {
-      display: inline-flex;
+      flex-wrap: nowrap;
     }
 
     .explain-scrim {
@@ -824,6 +805,18 @@
       line-height: 1.85;
     }
 
+    /* ---- 還沒打完就來看解析的提示 ---- */
+    .ex-preview-note {
+      font-size: 0.85rem;
+      color: #fde68a;
+      background: rgba(250, 204, 21, 0.1);
+      border: 1px solid rgba(250, 204, 21, 0.4);
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      line-height: 1.7;
+    }
+
     .ex-mistake__label {
       flex: 0 0 92px;
       color: var(--text-muted);
@@ -939,11 +932,13 @@
 
     <div class="status-banner" id="statusBanner">
       <span>✔ 整句拼寫完成！按 <strong>Space</strong> 進入下一個單元，或按 <strong>Enter</strong> 重新練習本句。</span>
-      <button class="explain-btn" id="explainBtn">📖 解析這一句</button>
     </div>
   </main>
 
   <div class="bottom-bar">
+    <button class="action-btn purple explain-btn" id="explainBtn" title="隨時都能看解析，不必等整句打完">
+      <span>Alt + S</span> <span>📖 解析這一句</span>
+    </button>
     <button class="action-btn" id="speakFullBtn">
       <span>Alt + '</span> <span>▶ 朗讀全句</span>
     </button>
@@ -1246,7 +1241,6 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
 
       promptZh.textContent = currentData.zh;
       promptIpa.textContent = currentData.ipa || '';
-      statusBanner.classList.remove('complete');
       statusBanner.style.display = 'none';
       wordsContainer.innerHTML = '';
 
@@ -1402,15 +1396,21 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
     }
 
     function checkSentenceCompletion() {
-      const done = isSentenceComplete();
-      statusBanner.classList.toggle('complete', done);
-      statusBanner.style.display = done ? 'flex' : 'none';
+      statusBanner.style.display = isSentenceComplete() ? 'flex' : 'none';
     }
 
     document.addEventListener('keydown', (e) => {
       if (e.altKey && (e.key === "'" || e.code === 'Quote')) {
         e.preventDefault();
         speakText(dataset[currentIndex].en, 1);
+        return;
+      }
+      // Alt + S：隨時都能看解析（不必等整句打完），再按一次關閉
+      if (e.altKey && (e.key === 's' || e.key === 'S' || e.code === 'KeyS')) {
+        if (importModal.style.display === 'flex') return;
+        e.preventDefault();
+        if (explainPanel.classList.contains('open')) closeExplain();
+        else openExplain();
         return;
       }
       if (e.altKey && (e.key === 'n' || e.key === 'N')) {
@@ -1690,7 +1690,17 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
       explainSub.textContent = '第 ' + (currentIndex + 1) + ' 句 / 共 ' + dataset.length + ' 句'
         + (entry.fromLibrary ? '' : '　·　自動提示');
 
+      const finished = isSentenceComplete();
+
       let html = '';
+
+      // 還沒打完就來看：提示這是提前預習
+      if (!finished) {
+        const inputs = Array.from(wordsContainer.querySelectorAll('input'));
+        const doneCount = inputs.filter(i => i.value.toLowerCase() === (i.dataset.target || '').toLowerCase()).length;
+        html += '<div class="ex-preview-note">⏳ 這一句還沒打完（已完成 ' + doneCount + ' / ' + inputs.length
+          + ' 個字），以下是提前預習的解析</div>';
+      }
 
       // 原句
       html += '<div class="ex-sentence">';
@@ -1794,14 +1804,11 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
     const resumeIndex = Math.min(Math.max(progress.index, 0), Math.max(dataset.length - 1, 0));
     renderCard(resumeIndex, true);
 
-    // #解析 / #explain：這一頁如果已經打完，直接開啟解析面板（方便分享、也方便測試）
+    // #解析 / #explain：直接開啟解析面板（不必等整句打完）
     // 注意：location.hash 遇到中文會回傳百分比編碼，必須先 decode 再比對
     const pageHash = decodeURIComponent(location.hash || '').toLowerCase();
     if (pageHash === '#解析' || pageHash === '#explain') {
-      setTimeout(() => {
-        if (isSentenceComplete()) openExplain();
-        else toast('先把這一句打完，才會出現「解析這一句」');
-      }, 400);
+      setTimeout(openExplain, 400);
     }
   </script>
 </body>
