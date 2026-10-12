@@ -523,6 +523,303 @@
       white-space: nowrap;
     }
 
+    /* ================= 錯字本 Modal 樣式 ================= */
+    .mistake-modal {
+      width: 90vw;
+      max-width: 720px;
+    }
+
+    .mistake-stats {
+      display: flex;
+      gap: 16px;
+      padding: 12px 16px;
+      background: var(--bg-input);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .mistake-stats .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mistake-stats .stat-value {
+      color: var(--text-main);
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .mistake-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-hint {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .mistake-list {
+      max-height: 45vh;
+      overflow-y: auto;
+    }
+
+    .mistake-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      transition: all 0.2s;
+    }
+
+    .mistake-item:hover {
+      border-color: var(--accent-purple);
+    }
+
+    .mistake-item.due {
+      border-left: 3px solid var(--accent-red);
+    }
+
+    .mistake-item.learning {
+      border-left: 3px solid var(--accent-purple);
+    }
+
+    .mistake-item.review {
+      border-left: 3px solid var(--accent-green);
+    }
+
+    .mistake-word {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--text-main);
+      min-width: 100px;
+    }
+
+    .mistake-word small {
+      font-weight: 400;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-left: 6px;
+    }
+
+    .mistake-meta {
+      display: flex;
+      gap: 12px;
+      flex: 1;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .mistake-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .mistake-meta .badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .badge-due { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+    .badge-learning { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+    .badge-review { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+
+    .mistake-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .mistake-btn {
+      padding: 5px 10px;
+      font-size: 0.75rem;
+      border-radius: 6px;
+    }
+
+    .mistake-sentence {
+      display: none;
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: var(--bg-card);
+      border-radius: 6px;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .mistake-item.expanded .mistake-sentence {
+      display: block;
+    }
+
+    /* 滾動過關模式 */
+    .review-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .review-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    .review-progress {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .review-progress-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-input);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .review-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-purple), var(--accent-green));
+      border-radius: 999px;
+      transition: width 0.3s;
+    }
+
+    .review-word {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 16px 0;
+      letter-spacing: 0.05em;
+    }
+
+    .review-sentence {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+
+    .review-ipa {
+      font-size: 0.85rem;
+      color: var(--accent-purple);
+      margin-bottom: 24px;
+      font-family: 'Consolas', monospace;
+    }
+
+    .review-input {
+      width: 100%;
+      font-size: 1.2rem;
+      padding: 14px 16px;
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-input);
+      color: var(--text-main);
+      outline: none;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .review-input:focus {
+      border-color: var(--accent-purple);
+    }
+
+    .review-input.correct {
+      border-color: var(--accent-green);
+    }
+
+    .review-input.error {
+      border-color: var(--accent-red);
+    }
+
+    .review-grade {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .grade-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .grade-again { background: var(--accent-red); color: white; }
+    .grade-hard { background: #f59e0b; color: white; }
+    .grade-good { background: var(--accent-green); color: white; }
+    .grade-easy { background: var(--accent-purple); color: white; }
+
+    .grade-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+
+    .review-hint {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .review-complete {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .review-complete h3 {
+      font-size: 1.5rem;
+      color: var(--accent-green);
+      margin-bottom: 8px;
+    }
+
+    .review-complete p {
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 680px) {
+      .mistake-modal { width: 95vw; }
+      .mistake-item { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .mistake-meta { width: 100%; }
+      .mistake-actions { width: 100%; justify-content: flex-end; }
+      .review-word { font-size: 2rem; }
+      .review-grade { gap: 6px; }
+      .grade-btn { padding: 8px 12px; font-size: 0.8rem; }
+    }
+
     .toast {
       position: fixed;
       left: 50%;
@@ -980,6 +1277,7 @@
     <div class="controls-group">
       <span class="save-chip" title="練到第幾句、哪些字已經打好，都會存在這台裝置；下次開啟直接接續">💾 自動記住進度</span>
       <button class="btn-primary" id="openImportBtn">📥 句庫管理</button>
+      <button class="action-btn" id="openMistakeBtn" title="查看並複習錯字本（SRS 間隔重複）">📓 錯字本</button>
     </div>
   </header>
 
@@ -1051,6 +1349,28 @@
     </div>
   </div>
 
+  <!-- 錯字本 Modal -->
+  <div class="modal-overlay" id="mistakeModal">
+    <div class="modal mistake-modal">
+      <div class="modal-header">
+        <div class="modal-title">📓 錯字本（SRS 間隔重複）</div>
+        <button id="closeMistakeBtn" style="background:transparent; border:none; font-size:1.2rem; color:var(--text-muted); cursor:pointer;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="mistakeStats" class="mistake-stats"></div>
+        <div class="mistake-toolbar">
+          <button class="btn-primary" id="startReviewBtn">🎯 滾動過關模式</button>
+          <span class="toolbar-hint">點擊單字可單獨練習；滾動過關會依 SRS 排序依序複習</span>
+        </div>
+        <div id="mistakeList" class="mistake-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelImportBtn" class="btn-ghost" style="display:none"></button>
+        <button class="btn-primary" id="clearMistakesBtn" style="margin-left:auto;">🗑 清空錯字本</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 解析面板：從右側滑入 -->
   <div class="explain-scrim" id="explainScrim"></div>
   <aside class="explain-panel" id="explainPanel" aria-label="這一句的解析">
@@ -1091,10 +1411,11 @@ We should protect animals. = 我們應該保護動物。 = /wiː ʃʊd prəˈtek
 Do not feed the animals. = 不要餵食動物。 = /duː nəʊt fiːd ðiː ˈænɪ.məlz/
 The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz kləʊzd ˈevri ˈmʌndeɪ/`;
 
-    /* ================= 儲存：句庫來源 + 練習進度 + 朗讀設定 ================= */
+    /* ================= 儲存：句庫來源 + 練習進度 + 朗讀設定 + 錯字本 ================= */
     const STORAGE_BANK = 'wm.bank.v1';
     const STORAGE_PROGRESS = 'wm.progress.v1';
     const STORAGE_TTS = 'wm.settings.v1';
+    const STORAGE_MISTAKES = 'wm.mistakes.v1';
 
     function readStore(key, fallback) {
       try {
@@ -1122,6 +1443,7 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
     let speakRate = 0.9;
     let wordErrorCounts = [];
     let isWatermarkActive = [];
+    let mistakeBook = {};  // word -> { ef, interval, due, reps, lastReview, sentence, zh, ipa }
 
     const promptZh = document.getElementById('promptZh');
     const promptIpa = document.getElementById('promptIpa');
@@ -1145,6 +1467,13 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
     const bankHint = document.getElementById('bankHint');
     const exportText = document.getElementById('exportText');
     const useRepoBtn = document.getElementById('useRepoBtn');
+
+    const mistakeModal = document.getElementById('mistakeModal');
+    const openMistakeBtn = document.getElementById('openMistakeBtn');
+    const closeMistakeBtn = document.getElementById('closeMistakeBtn');
+    const mistakeList = document.getElementById('mistakeList');
+    const mistakeStats = document.getElementById('mistakeStats');
+    const startReviewBtn = document.getElementById('startReviewBtn');
 
     const explainPanel = document.getElementById('explainPanel');
     const explainScrim = document.getElementById('explainScrim');
@@ -1359,6 +1688,304 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
       });
     }
 
+    /* ================= 錯字本（SRS 間隔重複） ================= */
+    const SRS_INITIAL_EF = 2.5;
+    const SRS_MIN_EF = 1.3;
+    const SRS_INTERVALS = [1, 6]; // 天數：第1次=1天，第2次=6天，之後用 EF 乘法
+
+    function readMistakes() {
+      try {
+        const raw = readStore(STORAGE_MISTAKES, '{}');
+        return JSON.parse(raw);
+      } catch (e) { return {}; }
+    }
+
+    function writeMistakes() {
+      writeStore(STORAGE_MISTAKES, JSON.stringify(mistakeBook));
+    }
+
+    function loadMistakeBook() {
+      mistakeBook = readMistakes();
+    }
+
+    // 當單字錯誤達 3 次時記入錯字本（或更新既有記錄）
+    function recordMistake(word, sentence, zh, ipa) {
+      const key = word.toLowerCase();
+      const now = Date.now();
+      if (!mistakeBook[key]) {
+        mistakeBook[key] = {
+          word: word,
+          ef: SRS_INITIAL_EF,
+          interval: 0,
+          due: now,
+          reps: 0,
+          lastReview: 0,
+          sentence: sentence,
+          zh: zh,
+          ipa: ipa,
+          totalErrors: 0
+        };
+      }
+      mistakeBook[key].totalErrors++;
+      mistakeBook[key].sentence = sentence; // 更新最新例句
+      mistakeBook[key].zh = zh;
+      mistakeBook[key].ipa = ipa;
+      // 若尚未到期且不是學習階段，不重置間隔
+      if (mistakeBook[key].interval === 0) {
+        mistakeBook[key].due = now; // 立即可複習
+      }
+      writeMistakes();
+    }
+
+    // SM-2 簡化版評分更新
+    function updateSRS(entry, grade) {
+      // grade: 0=Again, 1=Hard, 2=Good, 3=Easy
+      if (grade === 0) {
+        // 重來：重置間隔，EF 下降
+        entry.ef = Math.max(SRS_MIN_EF, entry.ef - 0.2);
+        entry.interval = 0;
+        entry.reps = 0;
+      } else {
+        if (entry.reps === 0) entry.interval = SRS_INTERVALS[0];
+        else if (entry.reps === 1) entry.interval = SRS_INTERVALS[1];
+        else entry.interval = Math.round(entry.interval * entry.ef);
+
+        if (grade === 1) entry.ef = Math.max(SRS_MIN_EF, entry.ef - 0.15);
+        else if (grade === 3) entry.ef = entry.ef + 0.15;
+        // grade 2 (Good) 不調整 EF
+
+        entry.reps++;
+      }
+      entry.lastReview = Date.now();
+      entry.due = entry.lastReview + entry.interval * 24 * 60 * 60 * 1000;
+      writeMistakes();
+    }
+
+    function getDueEntries() {
+      const now = Date.now();
+      return Object.values(mistakeBook)
+        .filter(e => e.due <= now)
+        .sort((a, b) => a.due - b.due);
+    }
+
+    function getAllEntriesSorted() {
+      return Object.values(mistakeBook).sort((a, b) => a.due - b.due);
+    }
+
+    function formatDueLabel(entry) {
+      const now = Date.now();
+      if (entry.interval === 0) return { label: '學習中', class: 'badge-learning' };
+      if (entry.due <= now) return { label: '待複習', class: 'badge-due' };
+      const days = Math.ceil((entry.due - now) / (24 * 60 * 60 * 1000));
+      return { label: `${days} 天後`, class: 'badge-review' };
+    }
+
+    function renderMistakeStats() {
+      const entries = Object.values(mistakeBook);
+      const total = entries.length;
+      const due = entries.filter(e => e.due <= Date.now() && e.interval > 0).length;
+      const learning = entries.filter(e => e.interval === 0).length;
+      const mastered = entries.filter(e => e.reps >= 3 && e.due > Date.now()).length;
+      mistakeStats.innerHTML = `
+        <span class="stat-item"><span class="stat-value">${total}</span> 個單字</span>
+        <span class="stat-item"><span class="stat-value" style="color:var(--accent-red)">${due}</span> 待複習</span>
+        <span class="stat-item"><span class="stat-value" style="color:var(--accent-purple)">${learning}</span> 學習中</span>
+        <span class="stat-item"><span class="stat-value" style="color:var(--accent-green)">${mastered}</span> 已掌握</span>
+      `;
+    }
+
+    function renderMistakeList() {
+      const entries = getAllEntriesSorted();
+      if (entries.length === 0) {
+        mistakeList.innerHTML = '<div style="padding:24px; text-align:center; color:var(--text-muted)">🎉 錯字本是空的！繼續練習，錯誤會自動記錄在這裡。</div>';
+        return;
+      }
+      mistakeList.innerHTML = entries.map(entry => {
+        const dueInfo = formatDueLabel(entry);
+        return `
+          <div class="mistake-item ${entry.interval === 0 ? 'learning' : (entry.due <= Date.now() ? 'due' : 'review')}" data-word="${entry.word}">
+            <span class="mistake-word">${entry.word}<small>${entry.reps} 刷</small></span>
+            <div class="mistake-meta">
+              <span>間隔：<strong>${entry.interval === 0 ? '—' : entry.interval + ' 天'}</strong></span>
+              <span>EF：<strong>${entry.ef.toFixed(2)}</strong></span>
+              <span class="badge ${dueInfo.class}">${dueInfo.label}</span>
+            </div>
+            <div class="mistake-actions">
+              <button class="action-btn mistake-btn" onclick="practiceSingle('${entry.word}')">🔤 練習</button>
+              <button class="action-btn mistake-btn" onclick="speakText('${entry.word.replace(/'/g, "\\'")}', 1)">🔊</button>
+            </div>
+            <div class="mistake-sentence">${entry.sentence}<br><small>${entry.zh}</small>${entry.ipa ? '<br><code>' + entry.ipa + '</code>' : ''}</div>
+          </div>
+        `;
+      }).join('');
+
+      // 點擊單字展開例句
+      mistakeList.querySelectorAll('.mistake-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          if (e.target.tagName === 'BUTTON') return;
+          item.classList.toggle('expanded');
+        });
+      });
+    }
+
+    function openMistakeModal() {
+      renderMistakeStats();
+      renderMistakeList();
+      mistakeModal.style.display = 'flex';
+    }
+
+    function closeMistakeModal() {
+      mistakeModal.style.display = 'none';
+    }
+
+    // 單字單獨練習
+    window.practiceSingle = function(word) {
+      closeMistakeModal();
+      // 找到包含這個單字的句子
+      const entry = mistakeBook[word.toLowerCase()];
+      if (!entry) return;
+      // 找 dataset 中對應的句子索引
+      const idx = dataset.findIndex(d => d.en.toLowerCase().includes(word.toLowerCase()));
+      if (idx >= 0) {
+        renderCard(idx);
+        // 聚焦到該單字
+        setTimeout(() => {
+          const inputs = wordsContainer.querySelectorAll('input');
+          inputs.forEach(inp => {
+            if (inp.dataset.target.toLowerCase() === word.toLowerCase()) {
+              inp.focus();
+            }
+          });
+        }, 50);
+      }
+      toast('已跳轉到包含 "' + word + '" 的句子');
+    };
+
+    /* ================= 滾動過關模式 ================= */
+    let reviewQueue = [];
+    let reviewIndex = 0;
+    let reviewOverlay = null;
+
+    function startReviewMode() {
+      reviewQueue = getDueEntries();
+      if (reviewQueue.length === 0) {
+        // 沒有待複習，改用全部排序
+        reviewQueue = getAllEntriesSorted();
+      }
+      if (reviewQueue.length === 0) {
+        toast('錯字本是空的，沒有可複習的單字');
+        return;
+      }
+      reviewIndex = 0;
+      closeMistakeModal();
+      showReviewCard();
+    }
+
+    function showReviewCard() {
+      if (reviewIndex >= reviewQueue.length) {
+        showReviewComplete();
+        return;
+      }
+      const entry = reviewQueue[reviewIndex];
+      const progress = ((reviewIndex) / reviewQueue.length * 100).toFixed(0);
+
+      if (!reviewOverlay) {
+        reviewOverlay = document.createElement('div');
+        reviewOverlay.className = 'review-overlay';
+        document.body.appendChild(reviewOverlay);
+      }
+
+      reviewOverlay.innerHTML = `
+        <div class="review-card">
+          <div class="review-progress">
+            <span>第 ${reviewIndex + 1} / ${reviewQueue.length} 字</span>
+            <div class="review-progress-bar"><div class="review-progress-fill" style="width:${progress}%"></div></div>
+          </div>
+          <div class="review-word" id="reviewWord">${entry.word}</div>
+          <div class="review-sentence">${entry.sentence}</div>
+          <div class="review-ipa">${entry.ipa || ''}</div>
+          <input type="text" class="review-input" id="reviewInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="輸入拼寫...">
+          <div class="review-grade">
+            <button class="grade-btn grade-again" data-grade="0">❌ Again</button>
+            <button class="grade-btn grade-hard" data-grade="1">😰 Hard</button>
+            <button class="grade-btn grade-good" data-grade="2">👍 Good</button>
+            <button class="grade-btn grade-easy" data-grade="3">🚀 Easy</button>
+          </div>
+          <div class="review-hint">輸入拼寫後按 Enter，或直接點按鈕評分（不需輸入也可評分）</div>
+          <div class="review-complete" id="reviewComplete"></div>
+        </div>
+      `;
+
+      const input = document.getElementById('reviewInput');
+      input.focus();
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const val = input.value.trim().toLowerCase();
+          const target = entry.word.toLowerCase();
+          if (val === target) {
+            input.classList.add('correct');
+            input.classList.remove('error');
+            setTimeout(() => gradeReview(2), 300); // Good
+          } else {
+            input.classList.add('error');
+            input.classList.remove('correct');
+          }
+        }
+      });
+
+      reviewOverlay.querySelectorAll('.grade-btn').forEach(btn => {
+        btn.addEventListener('click', () => gradeReview(parseInt(btn.dataset.grade, 10)));
+      });
+    }
+
+    function gradeReview(grade) {
+      const entry = reviewQueue[reviewIndex];
+      updateSRS(entry, grade);
+      reviewIndex++;
+      showReviewCard();
+    }
+
+    function showReviewComplete() {
+      if (!reviewOverlay) return;
+      const card = reviewOverlay.querySelector('.review-card');
+      card.innerHTML = `
+        <div class="review-complete">
+          <h3>🎉 本輪複習完成！</h3>
+          <p>共複習 ${reviewQueue.length} 個單字</p>
+          <button class="btn-primary" onclick="closeReviewMode()">關閉</button>
+        </div>
+      `;
+    }
+
+    function closeReviewMode() {
+      if (reviewOverlay) {
+        reviewOverlay.remove();
+        reviewOverlay = null;
+      }
+      reviewQueue = [];
+      reviewIndex = 0;
+    }
+
+    // 監聽錯字本按鈕
+    openMistakeBtn.addEventListener('click', openMistakeModal);
+    closeMistakeBtn.addEventListener('click', closeMistakeModal);
+    mistakeModal.addEventListener('click', (e) => { if (e.target === mistakeModal) closeMistakeModal(); });
+    startReviewBtn.addEventListener('click', startReviewMode);
+
+    document.getElementById('clearMistakesBtn').addEventListener('click', () => {
+      if (confirm('確定要清空整個錯字本嗎？此操作無法復原。')) {
+        mistakeBook = {};
+        writeMistakes();
+        renderMistakeStats();
+        renderMistakeList();
+        toast('錯字本已清空');
+      }
+    });
+
+    // 載入錯字本
+    loadMistakeBook();
+
     function speakText(text, repeatCount = 1) {
       if (!('speechSynthesis' in window) || !text) return;
       const cleanText = text.replace(/[^a-zA-Z0-9\s']/g, '');
@@ -1480,6 +2107,10 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
         wordErrorCounts[wordIdx]++;
 
         // 錯滿 3 次即觸發浮水印與朗讀
+        if (wordErrorCounts[wordIdx] === 3) {
+          // 只在剛好達到 3 次時記入錯字本（避免重複記錄）
+          recordMistake(targetWord, currentData.en, currentData.zh, currentData.ipa);
+        }
         if (wordErrorCounts[wordIdx] >= 3) {
           isWatermarkActive[wordIdx] = true;
           updateWatermark(input, watermarkLayer, targetWord);
