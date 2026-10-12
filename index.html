@@ -2109,7 +2109,8 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
         // 錯滿 3 次即觸發浮水印與朗讀
         if (wordErrorCounts[wordIdx] === 3) {
           // 只在剛好達到 3 次時記入錯字本（避免重複記錄）
-          recordMistake(targetWord, currentData.en, currentData.zh, currentData.ipa);
+          const cd = dataset[currentIndex];
+          if (cd) recordMistake(targetWord, cd.en, cd.zh, cd.ipa);
         }
         if (wordErrorCounts[wordIdx] >= 3) {
           isWatermarkActive[wordIdx] = true;
