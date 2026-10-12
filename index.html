@@ -66,6 +66,63 @@
       color: var(--text-muted);
     }
 
+    /* 語速拉桿 */
+    .control-item input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 110px;
+      height: 6px;
+      padding: 0;
+      border: none;
+      border-radius: 999px;
+      background: var(--bg-input);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .control-item input[type="range"]:focus {
+      box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+    }
+
+    .control-item input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .control-item input[type="range"]::-webkit-slider-thumb:hover {
+      background: var(--accent-purple-hover);
+      transform: scale(1.15);
+    }
+
+    .control-item input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent-purple);
+      cursor: pointer;
+    }
+
+    .control-item input[type="range"]::-moz-range-track {
+      height: 6px;
+      border-radius: 999px;
+      background: var(--bg-input);
+    }
+
+    .rate-value {
+      min-width: 44px;
+      color: var(--text-main);
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+    }
+
     select, button {
       background: var(--bg-input);
       color: var(--text-main);
@@ -870,6 +927,7 @@
 
     @media (max-width: 680px) {
       .explain-panel { width: 100vw; }
+      .control-item input[type="range"] { width: 80px; }
       .ex-mistake__row { flex-direction: column; gap: 2px; }
       .ex-mistake__label { flex: none; }
       .ex-table--pos td:nth-child(2),
@@ -902,6 +960,11 @@
       <div class="control-item">
         <label for="voiceSelect">🔊 語音：</label>
         <select id="voiceSelect"><option>載入中...</option></select>
+      </div>
+      <div class="control-item">
+        <label for="rateRange">🐢 語速：</label>
+        <input type="range" id="rateRange" min="0.5" max="1.5" step="0.05" value="0.9" title="調整朗讀語速（0.5× 慢～1.5× 快）">
+        <span class="rate-value" id="rateValue">0.9×</span>
       </div>
       <div class="control-item">
         <label for="repeatCountSelect">🔁 錯3次自動朗讀次數：</label>
@@ -1028,9 +1091,10 @@ We should protect animals. = 我們應該保護動物。 = /wiː ʃʊd prəˈtek
 Do not feed the animals. = 不要餵食動物。 = /duː nəʊt fiːd ðiː ˈænɪ.məlz/
 The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz kləʊzd ˈevri ˈmʌndeɪ/`;
 
-    /* ================= 儲存：句庫來源 + 練習進度 ================= */
+    /* ================= 儲存：句庫來源 + 練習進度 + 朗讀設定 ================= */
     const STORAGE_BANK = 'wm.bank.v1';
     const STORAGE_PROGRESS = 'wm.progress.v1';
+    const STORAGE_TTS = 'wm.settings.v1';
 
     function readStore(key, fallback) {
       try {
@@ -1055,6 +1119,7 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
     let dataset = [];
     let currentIndex = 0;
     let selectedVoice = null;
+    let speakRate = 0.9;
     let wordErrorCounts = [];
     let isWatermarkActive = [];
 
@@ -1062,6 +1127,8 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
     const promptIpa = document.getElementById('promptIpa');
     const wordsContainer = document.getElementById('wordsContainer');
     const voiceSelect = document.getElementById('voiceSelect');
+    const rateRange = document.getElementById('rateRange');
+    const rateValue = document.getElementById('rateValue');
     const repeatCountSelect = document.getElementById('repeatCountSelect');
     const statusBanner = document.getElementById('statusBanner');
     const prevCardBtn = document.getElementById('prevCardBtn');
@@ -1197,30 +1264,99 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
       }).filter(item => item.en !== '');
     }
 
+    /* ================= 朗讀設定（語音 + 語速，存在這台裝置） ================= */
+    const RATE_MIN = 0.5;
+    const RATE_MAX = 1.5;
+
+    function readTtsSettings() {
+      try {
+        const parsed = JSON.parse(readStore(STORAGE_TTS, ''));
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+      } catch (e) { return {}; }
+    }
+
+    function writeTtsSettings(patch) {
+      writeStore(STORAGE_TTS, JSON.stringify(Object.assign({}, readTtsSettings(), patch)));
+    }
+
+    function clampRate(rate) {
+      return Math.min(Math.max(rate, RATE_MIN), RATE_MAX);
+    }
+
+    function formatRate(rate) {
+      return `${Number(rate.toFixed(2))}×`;
+    }
+
+    /* ================= 語速拉桿 ================= */
+    // 從 localStorage 還原上次的語速
+    const savedRate = Number(readTtsSettings().rate);
+    if (Number.isFinite(savedRate)) speakRate = clampRate(savedRate);
+
+    function renderRateControl() {
+      if (rateRange) rateRange.value = String(speakRate);
+      if (rateValue) rateValue.textContent = formatRate(speakRate);
+    }
+
+    renderRateControl();
+
+    rateRange.addEventListener('input', () => {
+      const next = parseFloat(rateRange.value);
+      if (!Number.isFinite(next)) return;
+      speakRate = clampRate(next);
+      renderRateControl();
+      writeTtsSettings({ rate: speakRate });
+    });
+
+    // 拉桿放開時試播目前這句，立刻確認語速
+    rateRange.addEventListener('change', () => {
+      if (dataset.length === 0) return;
+      speakText(dataset[currentIndex].en, 1);
+    });
+
+    /* ================= 語音選擇：預設 Microsoft Mark (en-US) 第一優先 ================= */
+    // 數字越大越前面：Mark(en-US) > 其他 Microsoft en-US > Microsoft > Google > 其他
+    function voiceRank(voice) {
+      const name = voice.name || '';
+      const lang = voice.lang || '';
+      const isMicrosoft = name.includes('Microsoft');
+      const isUs = lang === 'en-US';
+      if (isMicrosoft && name.includes('Mark') && isUs) return 5;
+      if (isMicrosoft && isUs) return 4;
+      if (isMicrosoft) return 3;
+      if (name.includes('Google')) return 2;
+      return 1;
+    }
+
     function initVoices() {
       if (!('speechSynthesis' in window)) return;
       const voices = speechSynthesis.getVoices();
       voiceSelect.innerHTML = '';
-      const englishVoices = voices.filter(v => v.lang.startsWith('en'));
-      englishVoices.sort((a, b) => {
-        const aScore = (a.name.includes('Google') ? 2 : 0) + (a.name.includes('Microsoft') ? 1 : 0);
-        const bScore = (b.name.includes('Google') ? 2 : 0) + (b.name.includes('Microsoft') ? 1 : 0);
-        return bScore - aScore;
-      });
+      const englishVoices = voices
+        .filter(v => v.lang.startsWith('en'))
+        .sort((a, b) => voiceRank(b) - voiceRank(a));
       englishVoices.forEach(voice => {
         const option = document.createElement('option');
         option.value = voice.name;
         option.textContent = `${voice.name} (${voice.lang})`;
         voiceSelect.appendChild(option);
       });
-      if (englishVoices.length > 0) selectedVoice = englishVoices[0];
-      voiceSelect.addEventListener('change', () => {
-        selectedVoice = voices.find(v => v.name === voiceSelect.value);
-      });
+      if (englishVoices.length === 0) return;
+      // 優先沿用使用者選過（或上次記住）的語音，都沒有才用排序第一的 Microsoft Mark (en-US)
+      const preferredName = readTtsSettings().voice || (selectedVoice ? selectedVoice.name : '');
+      const preferred = englishVoices.find(v => v.name === preferredName);
+      selectedVoice = preferred || englishVoices[0];
+      voiceSelect.value = selectedVoice.name;
     }
     if ('speechSynthesis' in window) {
       speechSynthesis.onvoiceschanged = initVoices;
       initVoices();
+      voiceSelect.addEventListener('change', () => {
+        const voices = speechSynthesis.getVoices();
+        const chosen = voices.find(v => v.name === voiceSelect.value);
+        if (!chosen) return;
+        selectedVoice = chosen;
+        writeTtsSettings({ voice: chosen.name });
+      });
     }
 
     function speakText(text, repeatCount = 1) {
@@ -1231,7 +1367,7 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
       for (let i = 0; i < repeatCount; i++) {
         const utterance = new SpeechSynthesisUtterance(cleanText);
         if (selectedVoice) utterance.voice = selectedVoice;
-        utterance.rate = 0.9;
+        utterance.rate = speakRate;
         speechSynthesis.speak(utterance);
       }
     }
