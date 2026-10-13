@@ -1550,6 +1550,9 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
       const card = dataset[currentIndex];
       if (!card || progress.sentence !== card.en) return 0;
       const inputs = Array.from(wordsContainer.querySelectorAll('input'));
+      // 若上次這一句已經「全部打完」，就不要把答案還原填滿，
+      // 否則一進入就顯示已完成、使用者沒字可打；改為留白讓他重新打一次
+      if (inputs.length > 0 && Array.isArray(progress.correct) && progress.correct.length >= inputs.length) return 0;
       let done = 0;
       progress.correct.forEach(idx => {
         const input = inputs[idx];
