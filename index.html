@@ -123,6 +123,11 @@
       font-variant-numeric: tabular-nums;
     }
 
+    /* 語音選單：列出全部語音後，避免長名稱撐開控制列 */
+    #voiceSelect {
+      max-width: 280px;
+    }
+
     select, button {
       background: var(--bg-input);
       color: var(--text-main);
@@ -1659,24 +1664,55 @@ The zoo is closed every Monday. = 動物園每週一休館。 = /ðə zuː ɪz k
       return 1;
     }
 
+    // 依語系分組，清單長也好找
+    function voiceGroupLabel(lang) {
+      if (!lang) return '其他';
+      if (lang.startsWith('en')) return '英文 English';
+      // 先判斷粵語（zh-HK / yue），再判斷一般中文
+      if (lang.startsWith('yue') || lang.startsWith('zh-HK') || lang.startsWith('zh-Hant') || lang.startsWith('hk')) return '中文（粵語）';
+      if (lang.startsWith('zh')) return '中文';
+      return '其他語言';
+    }
+
     function initVoices() {
       if (!('speechSynthesis' in window)) return;
       const voices = speechSynthesis.getVoices();
       voiceSelect.innerHTML = '';
-      const englishVoices = voices
-        .filter(v => v.lang.startsWith('en'))
-        .sort((a, b) => voiceRank(b) - voiceRank(a));
-      englishVoices.forEach(voice => {
-        const option = document.createElement('option');
-        option.value = voice.name;
-        option.textContent = `${voice.name} (${voice.lang})`;
-        voiceSelect.appendChild(option);
+
+      // 把 TTS 能發音的語音「全部」列出來（不再只限英文），
+      // 排序仍以 Microsoft Mark (en-US) 為第一優先
+      const sorted = voices.slice().sort((a, b) => {
+        const rank = voiceRank(b) - voiceRank(a);
+        if (rank !== 0) return rank;
+        const byLang = (a.lang || '').localeCompare(b.lang || '');
+        return byLang !== 0 ? byLang : (a.name || '').localeCompare(b.name || '');
       });
-      if (englishVoices.length === 0) return;
+
+      // 用 optgroup 按語系分組；英文排最前（本 App 是英文拼寫練習）
+      const groups = new Map();
+      sorted.forEach(voice => {
+        const label = voiceGroupLabel(voice.lang);
+        if (!groups.has(label)) groups.set(label, []);
+        groups.get(label).push(voice);
+      });
+      const groupOrder = ['英文 English', '中文', '中文（粵語）', '其他語言', '其他'];
+      groupOrder.filter(g => groups.has(g)).forEach(label => {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = label;
+        groups.get(label).forEach(voice => {
+          const option = document.createElement('option');
+          option.value = voice.name;
+          option.textContent = `${voice.name} (${voice.lang})`;
+          optgroup.appendChild(option);
+        });
+        voiceSelect.appendChild(optgroup);
+      });
+
+      if (voices.length === 0) return;
       // 優先沿用使用者選過（或上次記住）的語音，都沒有才用排序第一的 Microsoft Mark (en-US)
       const preferredName = readTtsSettings().voice || (selectedVoice ? selectedVoice.name : '');
-      const preferred = englishVoices.find(v => v.name === preferredName);
-      selectedVoice = preferred || englishVoices[0];
+      const preferred = sorted.find(v => v.name === preferredName);
+      selectedVoice = preferred || sorted[0];
       voiceSelect.value = selectedVoice.name;
     }
     if ('speechSynthesis' in window) {
